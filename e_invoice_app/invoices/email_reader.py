@@ -4,6 +4,7 @@ import re
 from django.utils.timezone import make_aware
 from datetime import datetime
 from invoices.models import Email, InvoiceData
+import html2text
 
 EMAIL_ACCOUNT = "nguyenly1204kh@gmail.com"
 EMAIL_PASSWORD = "qxeh xznv ftqr hxcc" 
@@ -67,7 +68,7 @@ def extract_invoice_data(email_obj, content):
     # Regex để lấy thông tin hóa đơn
     company_pattern = r"Cảm ơn quý khách hàng đã mua hàng tại (.+?)\."
     lookup_link_pattern = r"(https?://[^\s]+|tracuu\.ehoadon\.vn[^\s]*)"
-    invoice_code_pattern = r"Mã tra cứu là: (\S+)"
+    invoice_code_pattern = r"Mã tra\s*cứu(?: là)?\s*[:：]?\s*\n?([\w\d]+)"
     template_number_pattern = r"Mẫu số: (\d+)"
     symbol_pattern = r"Ký hiệu: (\S+)"
     invoice_number_pattern = r"Số Hóa đơn: (\d+)"
@@ -101,10 +102,3 @@ def extract_invoice_data(email_obj, content):
         bank_account_usd=extract(bank_account_usd_pattern, content),
         swift_code=extract(swift_code_pattern, content)
     )
-
-
-
-
-
-
-
