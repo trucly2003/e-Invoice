@@ -12,22 +12,20 @@ def crawl_taxcode_data(tax_code):
     url = "https://masothue.com/"
 
     options = webdriver.ChromeOptions()
-    # options.add_argument("--headless")  # Nếu cần chạy nền
+    options.add_argument("--headless")  # Chạy ẩn
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
-    )
+    options.add_argument("user-agent=Mozilla/5.0 ...")
 
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
 
     try:
         driver.get(url)
-        time.sleep(3)
-        driver.maximize_window()
+        time.sleep(2)
 
+        driver.maximize_window()
         search_box = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, '//*[@id="search"]'))
         )
@@ -35,72 +33,58 @@ def crawl_taxcode_data(tax_code):
         search_box.send_keys(tax_code)
 
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        print(f"🔍 Đã nhập MST: {tax_code}, đang tìm kiếm...")
-
         time.sleep(5)
 
         # ✅ Lấy tên công ty
-        name = driver.find_element(By.XPATH, '//*[@id="main"]/section[1]/div/table[1]/tbody/tr[2]/td[2]/span').text.strip()
+        name = driver.find_element(
+            By.XPATH, '//*[@id="main"]/section[1]/div/table[1]/tbody/tr[2]/td[2]/span'
+        ).text.strip()
 
-        # ✅ Lấy địa chỉ công ty
+        # ✅ Lấy địa chỉ
         try:
-            address_element = driver.find_element(By.XPATH, '//*[@id="main"]/section[1]/div/table[1]/tbody/tr[4]/td[2]/span')
-            address = address_element.text.strip()
+            address = driver.find_element(
+                By.XPATH, '//*[@id="main"]/section[1]/div/table[1]/tbody/tr[4]/td[2]/span'
+            ).text.strip()
         except:
-            address = "Không tìm thấy địa chỉ"
+            address = ""
 
-        # ✅ Lấy trạng thái hoạt động
+        # ✅ Lấy trạng thái
         try:
-            status_element = driver.find_element(By.XPATH, '//*[@id="main"]/section[1]/div/table[1]/tbody/tr[10]/td[2]/a')
-            status = status_element.text.strip()
+            status_text = driver.find_element(
+                By.XPATH, '//*[@id="main"]/section[1]/div/table[1]/tbody/tr[10]/td[2]/a'
+            ).text.strip()
         except:
-            status = "Không rõ trạng thái"
+            status_text = ""
 
-        # ✅ Cập nhật vào database
-        company, created = Company.objects.update_or_create(
-            tax_code=tax_code,
-            defaults={
-                "name": name,
-                "address": address,
-                "status": status,
-                "last_crawled": timezone.now()
-            }
-        )
-
-        print(f"✅ Lấy dữ liệu thành công: {name} ({tax_code}) - {address}")
-        return company
+        return {
+            "name": name,
+            "address": address,
+            "status": status_text,
+        }
 
     except Exception as e:
-        print(f"❌ Lỗi khi crawl MST {tax_code}: {e}")
+        print(f"❌ Lỗi crawl MST: {e}")
         return None
 
     finally:
         driver.quit()
 
 
-def verify_company_data(company, crawled_obj):
-    if not crawled_obj:
-        status = "FAIL"
-        message = "Không crawl được dữ liệu"
+def verify_company_data(company, crawled_data):
+    if not crawled_data:
+        return "FAIL", "Không crawl được dữ liệu"
+
+    msg = []
+
+    if company.name.strip() == crawled_data.get("name", "").strip():
+        msg.append("Tên trùng khớp")
     else:
-        msg = []
-        if company.name.strip() == crawled_obj.name.strip():
-            msg.append("Tên trùng khớp")
-        else:
-            msg.append("Tên KHÔNG khớp")
+        msg.append("Tên KHÔNG khớp")
 
-        if company.address.strip() == crawled_obj.address.strip():
-            msg.append("Địa chỉ trùng khớp")
-        else:
-            msg.append("Địa chỉ KHÔNG khớp")
+    if company.address.strip() == crawled_data.get("address", "").strip():
+        msg.append("Địa chỉ trùng khớp")
+    else:
+        msg.append("Địa chỉ KHÔNG khớp")
 
-        status = "PASS" if "KHÔNG" not in " ".join(msg) else "FAIL"
-        message = "; ".join(msg)
-
-    verification = CompanyVerification.objects.create(
-        company=company,
-        source="masothue",
-        status=status,
-        message=message
-    )
-    return verification
+    verify_status = "PASS" if "KHÔNG" not in " ".join(msg) else "FAIL"
+    return verify_status, "; ".join(msg)
