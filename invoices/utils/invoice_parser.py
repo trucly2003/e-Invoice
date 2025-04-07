@@ -4,7 +4,6 @@ from datetime import datetime
 import pdfplumber
 from invoices.models import Company, ExtractedInvoice, InvoiceItem, InvoiceUpload
 from pdf2image import convert_from_path
-# ✅ Sử dụng EasyOCR thay cho PaddleOCR
 import easyocr
 import cloudinary
 ocr_reader = easyocr.Reader(['en', 'vi'])

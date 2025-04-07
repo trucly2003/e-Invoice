@@ -1,11 +1,17 @@
 from rest_framework import serializers
-from invoices.models import Company, CompanyVerification, ExtractedInvoice, InvoiceUpload
+from invoices.models import Company, CompanyVerification, ExtractedInvoice, InvoiceUpload, SignatureVerification
 
 
 class UploadedFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = InvoiceUpload
         fields = ['file', 'file_type']
+
+
+class SignatureVerificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SignatureVerification
+        fields = '__all__'
 
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:

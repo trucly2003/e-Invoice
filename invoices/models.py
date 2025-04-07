@@ -99,4 +99,15 @@ class InvoiceVerification(models.Model):
     def __str__(self):
         return f"{self.invoice.invoice_number} - {self.status}"
 
+# models.py
+class SignatureVerification(models.Model):
+    invoice = models.ForeignKey(ExtractedInvoice, on_delete=models.CASCADE, related_name="signature_verification")
+    signer_name = models.CharField(max_length=255)
+    status = models.CharField(max_length=10, choices=[("PASS", "PASS"), ("FAIL", "FAIL")])
+    match_content = models.BooleanField(default=False)
+    result_detail = models.TextField()
+    verified_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.invoice.invoice_number} - {self.status}"
 
