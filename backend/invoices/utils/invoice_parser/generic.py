@@ -39,7 +39,7 @@ def parse(text: str) -> dict:
     if match_number:
         parsed["invoice_number"] = match_number.group(1)
 
-    match_date = re.search(r"ngay \(?(\d{1,2})[^\d]{1,10}(\d{1,2})[^\d]{1,10}(\d{4})", text)
+    match_date = re.search(r"ngay[^\d]{1,10}(\d{1,2})[^\d]{1,10}(\d{1,2})[^\d]{1,10}(\d{4})", text)
     if match_date:
         try:
             day, month, year = match_date.groups()
@@ -55,34 +55,34 @@ def parse(text: str) -> dict:
             except:
                 pass
 
-    match_seller = re.search(r"cong ty co phan dich vu hang hoa tan son nhat", text)
-    if match_seller:
-        parsed["seller_name"] = "CÔNG TY CỔ PHẦN DỊCH VỤ HÀNG HÓA TÂN SƠN NHẤT"
+    match_seller_name = re.search(r"don vi ban[^a-z0-9]{0,10}:?\s*(cong ty.*?)\s*(dia chi|address|ma so thue)", text)
+    if match_seller_name:
+        parsed["seller_name"] = match_seller_name.group(1).strip().upper()[:255]
 
-    match_tax = re.search(r"ma so thue[^\d]{0,10}(0301215249)", text)
-    if match_tax:
-        parsed["seller_tax"] = match_tax.group(1)
+    match_seller_tax = re.search(r"ma so thue[^\d]{0,10}(\d{10})", text)
+    if match_seller_tax:
+        parsed["seller_tax"] = match_seller_tax.group(1)
 
-    match_addr = re.search(r"46[^\n]{0,80}qu[aâ]n tan binh[^\n]{0,80}tp\. hcm", text)
-    if match_addr:
-        parsed["seller_address"] = "46-48 Hậu, Phường 4, Quận Tân Bình, TP. HCM, Việt Nam"
+    match_seller_addr = re.search(r"(address|dia chi)[^a-z0-9]{0,10}(.{10,300}?)(ma so thue|tax code|dien thoai|phone)", text)
+    if match_seller_addr:
+        parsed["seller_address"] = match_seller_addr.group(2).strip()[:255]
 
-    match_buyer_name = re.search(r"don vi[^a-z0-9]{0,10}(cong ty tnhh green planet distribution centre)", text)
+    match_buyer_name = re.search(r"(don vi|company)[^a-z0-9]{0,10}(cong ty[^\n\r]{5,120})", text)
     if match_buyer_name:
-        parsed["buyer_name"] = match_buyer_name.group(1)[:255]
+        parsed["buyer_name"] = match_buyer_name.group(2).strip().upper()[:255]
 
-    match_buyer_tax = re.search(r"ma so thue[^\d]{0,10}(0317077996)", text)
+    match_buyer_tax = re.search(r"ma so thue[^\d]{0,10}(\d{10,})", text)
     if match_buyer_tax:
         parsed["buyer_tax"] = match_buyer_tax.group(1)
 
-    match_buyer_address = re.search(r"address[^a-z0-9]{0,10}(.{10,200}?)hinh thuc thanh toan", text)
+    match_buyer_address = re.search(r"(address|dia chi)[^a-z0-9]{0,10}(.{10,300}?)(hinh thuc thanh toan|currency|exchange rate)", text)
     if match_buyer_address:
-        parsed["buyer_address"] = match_buyer_address.group(1).strip()[:255]
+        parsed["buyer_address"] = match_buyer_address.group(2).strip()[:255]
 
-    match_totals = re.findall(r"tien thanh toan.*?(\d{1,3}(?:\.\d{3})+).*?(\d{1,3}(?:\.\d{3})+).*?(\d{1,3}(?:\.\d{3})+)", text)
+    match_totals = re.search(r"tien thanh toan[^\d]*(\d{1,3}(?:\.\d{3})+)[^\d]*(\d{1,3}(?:\.\d{3})+)[^\d]*(\d{1,3}(?:\.\d{3})+)", text)
     if match_totals:
         try:
-            a, b, c = match_totals[-1]
+            a, b, c = match_totals.groups()
             parsed["total_amount"] = float(a.replace(".", ""))
             parsed["vat_amount"] = float(b.replace(".", ""))
             parsed["grand_total"] = float(c.replace(".", ""))

@@ -12,7 +12,7 @@ from .serializers import UploadedFileSerializer, ExtractedInvoiceSerializer, Com
 from invoices.utils.verifyMasothue import crawl_taxcode_data, verify_company_data
 from invoices.utils.verifyHoadondientu import verify_invoice_by_id
 from .models import ExtractedInvoice, Company, InvoiceUpload, CompanyVerification, InvoiceVerification, SignatureVerification
-# from invoices.utils.verifySig import check_pdf_signature, extract_text_from_pdf
+from invoices.utils.verifySig import check_pdf_signature_windows, extract_text_from_pdf
 
 import cloudinary.uploader
 
@@ -162,35 +162,36 @@ class ExtractedInvoiceViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# class SignatureVerificationViewSet(viewsets.ModelViewSet):
-#     queryset = SignatureVerification.objects.all()
-#     serializer_class = SignatureVerificationSerializer
-#     permission_classes = [IsAuthenticated]
-#
-#     @action(detail=True, methods=['post'], url_path='verify')
-#     def verify_signature(self, request, pk=None):
-#         try:
-#             invoice = ExtractedInvoice.objects.get(id=pk)
-#             pdf_path = invoice.upload.file.path
-#             pdf_text = extract_text_from_pdf(pdf_path)
-#             sig_info = check_pdf_signature(pdf_path)
-#
-#             matched_name = invoice.seller.name if invoice.seller else ""
-#             match = sig_info["signer_name"] in pdf_text or sig_info["signer_name"] in matched_name
-#             status_result = "PASS" if sig_info["status"] == "PASS" and match else "FAIL"
-#
-#             verification = SignatureVerification.objects.create(
-#                 invoice=invoice,
-#                 signer_name=sig_info["signer_name"],
-#                 status=status_result,
-#                 match_content=match,
-#                 result_detail=sig_info["raw_output"]
-#             )
-#
-#             serializer = self.get_serializer(verification)
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-#
-#         except ExtractedInvoice.DoesNotExist:
-#             return Response({"error": "Invoice not found"}, status=status.HTTP_404_NOT_FOUND)
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+class SignatureVerificationViewSet(viewsets.ModelViewSet):
+    queryset = SignatureVerification.objects.all()
+    serializer_class = SignatureVerificationSerializer
+
+    @action(detail=True, methods=['post'], url_path='verify')
+    def verify_signature(self, request, pk=None):
+        try:
+            invoice = ExtractedInvoice.objects.get(id=pk)
+
+            # Trích text để so sánh người ký
+            pdf_path = invoice.upload.file.path
+            pdf_text = extract_text_from_pdf(pdf_path)
+            sig_info = check_pdf_signature_windows(pdf_path)
+
+            matched_name = invoice.seller.name if invoice.seller else ""
+            match = sig_info["signer_name"] in pdf_text or sig_info["signer_name"] in matched_name
+            status_result = "PASS" if sig_info["status"] == "PASS" and match else "FAIL"
+
+            verification = SignatureVerification.objects.create(
+                invoice=invoice,
+                signer_name=sig_info["signer_name"],
+                status=status_result,
+                match_content=match,
+                result_detail=sig_info["raw_output"]
+            )
+
+            serializer = self.get_serializer(verification)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        except ExtractedInvoice.DoesNotExist:
+            return Response({"error": "Invoice not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
