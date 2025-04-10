@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 export default function LoginForm() {
@@ -6,6 +7,7 @@ export default function LoginForm() {
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
   const [message, setMessage] = useState('');
+  const navigate = useNavigate(); 
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -16,6 +18,7 @@ export default function LoginForm() {
       });
       localStorage.setItem('token', res.data.access);
       setMessage("✅ Login thành công!");
+      navigate('/dashboard'); // 👉 chuyển hướng sau khi đăng nhập
     } catch (err) {
       setMessage("❌ Sai tài khoản hoặc mật khẩu.", err);
     }
@@ -72,3 +75,4 @@ export default function LoginForm() {
     </div>
   );
 }
+

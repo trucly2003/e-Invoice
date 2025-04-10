@@ -1,7 +1,8 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from invoices.views import ExtractedInvoiceViewSet, UploadInvoiceViewSet, SignatureVerificationViewSet
+from .views import ExtractedInvoiceViewSet, UploadInvoiceViewSet, SignatureVerificationViewSet
 from .auth_api import login_view
+
 
 router = DefaultRouter()
 router.register("invoices", ExtractedInvoiceViewSet, basename="invoice")

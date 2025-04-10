@@ -1,5 +1,6 @@
-from datetime import datetime
+# parse_utils/hapag_layout.py
 import re
+from datetime import datetime
 
 def parse(text: str) -> dict:
     parsed = {
@@ -22,11 +23,13 @@ def parse(text: str) -> dict:
     if match_invoice:
         parsed["invoice_number"] = match_invoice.group(2).strip()
 
-    match_date = re.search(r"ngay (\\d{1,2}) thang (\\d{1,2}) nam (\\d{4})", text)
-    if not match_date:
-        match_date = re.search(r"ngay.*?(\\d{1,2}).*?thang.*?(\\d{1,2}).*?nam.*?(\\d{4})", text)
+    match_date = re.search(r"ngay (\d{1,2}) thang (\d{1,2}) nam (\d{4})", text)
+    if match_date:
+        day, month, year = match_date.groups()
+        parsed["invoice_date"] = datetime(int(year), int(month), int(day)).date()
 
-    match_serial = re.search(r"ky hieu serial\s*([a-z0-9\-]+)", text)
+    match_serial = re.search(r"ky hieu.*?serial.*?:\s*([a-zA-Z0-9\-]+)", text)
+
     if match_serial:
         parsed["serial"] = match_serial.group(1).upper()
 

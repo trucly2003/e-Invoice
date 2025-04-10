@@ -5,6 +5,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework import status, viewsets
+import mimetypes
+import os
 
 from invoices.utils.invoice_parser import parse_invoice_by_layout
 from invoices.utils.ocr_utils import extract_text_from_pdf, extract_text_from_image
@@ -12,7 +14,7 @@ from .serializers import UploadedFileSerializer, ExtractedInvoiceSerializer, Com
 from invoices.utils.verifyMasothue import crawl_taxcode_data, verify_company_data
 from invoices.utils.verifyHoadondientu import verify_invoice_by_id
 from .models import ExtractedInvoice, Company, InvoiceUpload, CompanyVerification, InvoiceVerification, SignatureVerification
-from invoices.utils.verifySig import check_pdf_signature_windows, extract_text_from_pdf
+from invoices.utils.verifySig import check_pdf_signature_windows, extract_text_from_pdf, download_cloud_file_temp
 
 import cloudinary.uploader
 
@@ -25,26 +27,32 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         upload_obj = serializer.save()
         file_path = upload_obj.file.path
-        file_type = upload_obj.file_type
+
+        # ✅ Detect file type (PDF or Image)
+        mime_type, _ = mimetypes.guess_type(file_path)
+        if mime_type and 'pdf' in mime_type:
+            upload_obj.file_type = "PDF"
+        else:
+            upload_obj.file_type = "IMG"
+        upload_obj.save()
 
         try:
-            # OCR + detect layout
-            text = extract_text_from_pdf(file_path) if file_type == "PDF" else extract_text_from_image(file_path)
+            # ✅ OCR text
+            text = extract_text_from_pdf(file_path) if upload_obj.file_type == "PDF" else extract_text_from_image(file_path)
             parsed = parse_invoice_by_layout(text)
 
-            # Seller
+            # ✅ Seller
             seller, _ = Company.objects.get_or_create(
                 tax_code=parsed["seller_tax"],
                 defaults={"name": parsed["seller_name"], "address": parsed["seller_address"]}
             )
 
-            # Buyer
+            # ✅ Buyer (cập nhật nếu có thay đổi)
             buyer, created = Company.objects.get_or_create(
                 tax_code=parsed["buyer_tax"],
                 defaults={"name": parsed["buyer_name"], "address": parsed["buyer_address"]}
@@ -60,7 +68,7 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
                 if changed:
                     buyer.save()
 
-            # Create invoice
+            # ✅ Create ExtractedInvoice
             invoice = ExtractedInvoice.objects.create(
                 upload=upload_obj,
                 invoice_number=parsed["invoice_number"],
@@ -73,10 +81,17 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
                 serial=parsed.get("serial", "")
             )
 
-            # Upload Cloudinary
-            result = cloudinary.uploader.upload(file_path, folder="invoices")
+            # ✅ Upload Cloudinary (giữ local file để dùng pdfsig)
+            result = cloudinary.uploader.upload(
+                file_path,
+                folder="invoices",
+                resource_type="raw",
+                delivery_type="upload",
+                use_filename=True,
+                unique_filename=False
+            )
             upload_obj.cloudinary_url = result.get("secure_url")
-            upload_obj.file.delete(save=False)
+            # ❌ KHÔNG XÓA file local nữa → cần để kiểm thử chữ ký
             upload_obj.save()
 
             return Response({
@@ -90,7 +105,7 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_201_CREATED)
 
         except Exception as e:
-            return Response({"error": f"❌ Lỗi xử lý hóa đơn: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": f"❌ Lỗi xử lý hóa đơn: {str(e)}"}, status=400)
 
 
 class ExtractedInvoiceViewSet(viewsets.ModelViewSet):
@@ -170,9 +185,30 @@ class SignatureVerificationViewSet(viewsets.ModelViewSet):
     def verify_signature(self, request, pk=None):
         try:
             invoice = ExtractedInvoice.objects.get(id=pk)
+            upload = invoice.upload
 
-            # Trích text để so sánh người ký
-            pdf_path = invoice.upload.file.path
+            if not upload:
+                return Response({"error": "Không tìm thấy file gốc từ upload."}, status=400)
+
+            # ✅ Ưu tiên dùng file local nếu tồn tại
+            pdf_path = None
+            if upload.file and upload.file.path and os.path.exists(upload.file.path):
+                pdf_path = upload.file.path
+                print("📄 Dùng file local:", pdf_path)
+            elif upload.cloudinary_url:
+                try:
+                    pdf_path = download_cloud_file_temp(upload.cloudinary_url)
+                    print("☁️ Dùng file cloud:", pdf_path)
+                except Exception as e:
+                    return Response({"error": f"Lỗi tải từ Cloudinary: {str(e)}"}, status=400)
+            else:
+                return Response({"error": "Không có file local hoặc cloudinary URL để xử lý."}, status=400)
+
+            # ✅ Kiểm tra loại file
+            if upload.file_type == "IMG":
+                return Response({"error": "Không áp dụng kiểm tra chữ ký số cho file ảnh."}, status=400)
+
+            # ✅ OCR + kiểm tra chữ ký
             pdf_text = extract_text_from_pdf(pdf_path)
             sig_info = check_pdf_signature_windows(pdf_path)
 
@@ -192,6 +228,6 @@ class SignatureVerificationViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         except ExtractedInvoice.DoesNotExist:
-            return Response({"error": "Invoice not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Không tìm thấy hóa đơn."}, status=404)
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": str(e)}, status=500)
