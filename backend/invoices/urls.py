@@ -1,17 +1,29 @@
+# invoices/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ExtractedInvoiceViewSet, UploadInvoiceViewSet, SignatureVerificationViewSet
+from .views import (
+    ExtractedInvoiceViewSet, UploadInvoiceViewSet,
+    InvoiceDownloadViewSet,
+    CompareAndVerifyXMLAPIView, #VerifyXMLSignatureAPIView
+)
 from .auth_api import login_view, register_view
-
 
 router = DefaultRouter()
 router.register("invoices", ExtractedInvoiceViewSet, basename="invoice")
-router.register(r'upload-invoice', UploadInvoiceViewSet, basename='upload-invoice')
-router.register("signature-verification", SignatureVerificationViewSet, basename="signature-verification")
+router.register("upload-invoice", UploadInvoiceViewSet, basename="upload-invoice")
+router.register("invoice-download", InvoiceDownloadViewSet, basename="invoice-download")
 
 urlpatterns = [
     path("", include(router.urls)),
+
+    # Auth
     path("login/", login_view, name="login"),
     path("register/", register_view, name="register"),
- #   path('verify-signature/<int:invoice_id>/', VerifySignatureAPIView.as_view(), name='verify-signature'),
+
+    # path("invoice-verification/<int:pk>/compare-xml-content/", CompareXMLContentAPIView.as_view(),
+    #      name="compare-xml-content"),
+    # path("invoice-verification/<int:pk>/verify-xml-signature/", VerifyXMLSignatureAPIView.as_view(),
+    #      name="verify-xml-signature"),
+    path("invoice-verification/<int:pk>/verify-all/", CompareAndVerifyXMLAPIView.as_view(), name="verify-all"),
+
 ]

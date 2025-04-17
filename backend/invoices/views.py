@@ -15,6 +15,8 @@ from invoices.utils.verifyMasothue import crawl_taxcode_data, verify_company_dat
 from invoices.utils.verifyHoadondientu import verify_invoice_by_id
 from .models import ExtractedInvoice, Company, InvoiceUpload, CompanyVerification, InvoiceVerification, SignatureVerification
 from invoices.utils.verifySig import check_pdf_signature_windows, extract_text_from_pdf, download_cloud_file_temp
+from invoices.utils.crawl_save_xml import crawl_save_and_verify_xml
+from invoices.utils.compare_xml_pdf import compare_and_verify_xml
 
 import cloudinary.uploader
 
@@ -47,10 +49,20 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
             parsed = parse_invoice_by_layout(text)
 
             # ✅ Seller
-            seller, _ = Company.objects.get_or_create(
+            seller, created = Company.objects.get_or_create(
                 tax_code=parsed["seller_tax"],
                 defaults={"name": parsed["seller_name"], "address": parsed["seller_address"]}
             )
+            if not created:
+                changed = False
+                if seller.name != parsed["seller_name"]:
+                    seller.name = parsed["seller_name"]
+                    changed = True
+                if seller.address != parsed["seller_address"]:
+                    seller.address = parsed["seller_address"]
+                    changed = True
+                if changed:
+                    seller.save()
 
             # ✅ Buyer (cập nhật nếu có thay đổi)
             buyer, created = Company.objects.get_or_create(
@@ -78,7 +90,9 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
                 total_amount=parsed["total_amount"],
                 vat_amount=parsed["vat_amount"],
                 grand_total=parsed["grand_total"],
-                serial=parsed.get("serial", "")
+                serial=parsed.get("serial", ""),
+                link_tra_cuu=parsed["link_tra_cuu"],
+                ma_tra_cuu=parsed["ma_tra_cuu"],
             )
 
             # ✅ Upload Cloudinary (giữ local file để dùng pdfsig)
@@ -177,57 +191,36 @@ class ExtractedInvoiceViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class SignatureVerificationViewSet(viewsets.ModelViewSet):
-    queryset = SignatureVerification.objects.all()
-    serializer_class = SignatureVerificationSerializer
+class InvoiceDownloadViewSet(viewsets.ModelViewSet):
+    queryset = ExtractedInvoice.objects.all()
+    serializer_class = ExtractedInvoiceSerializer
+    permission_classes = [IsAuthenticated]
 
-    @action(detail=True, methods=['post'], url_path='verify')
-    def verify_signature(self, request, pk=None):
+    @action(detail=True, methods=["post"], url_path="download-xml")
+    def download_xml(self, request, pk=None):
         try:
-            invoice = ExtractedInvoice.objects.get(id=pk)
-            upload = invoice.upload
+            invoice = self.get_object()
+            crawl_save_and_verify_xml(invoice.id)
 
-            if not upload:
-                return Response({"error": "Không tìm thấy file gốc từ upload."}, status=400)
+            return Response({
+                "message": f"✅ Đã tải, upload Cloudinary và lưu XML cho mã: {invoice.ma_tra_cuu}"
+            }, status=status.HTTP_200_OK)
 
-            # ✅ Ưu tiên dùng file local nếu tồn tại
-            pdf_path = None
-            if upload.file and upload.file.path and os.path.exists(upload.file.path):
-                pdf_path = upload.file.path
-                print("📄 Dùng file local:", pdf_path)
-            elif upload.cloudinary_url:
-                try:
-                    pdf_path = download_cloud_file_temp(upload.cloudinary_url)
-                    print("☁️ Dùng file cloud:", pdf_path)
-                except Exception as e:
-                    return Response({"error": f"Lỗi tải từ Cloudinary: {str(e)}"}, status=400)
-            else:
-                return Response({"error": "Không có file local hoặc cloudinary URL để xử lý."}, status=400)
+        except Exception as e:
+            return Response({
+                "error": f"❌ Lỗi khi xử lý XML: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-            # ✅ Kiểm tra loại file
-            if upload.file_type == "IMG":
-                return Response({"error": "Không áp dụng kiểm tra chữ ký số cho file ảnh."}, status=400)
+class CompareAndVerifyXMLAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
-            # ✅ OCR + kiểm tra chữ ký
-            pdf_text = extract_text_from_pdf(pdf_path)
-            sig_info = check_pdf_signature_windows(pdf_path)
-
-            matched_name = invoice.seller.name if invoice.seller else ""
-            match = sig_info["signer_name"] in pdf_text or sig_info["signer_name"] in matched_name
-            status_result = "PASS" if sig_info["status"] == "PASS" and match else "FAIL"
-
-            verification = SignatureVerification.objects.create(
-                invoice=invoice,
-                signer_name=sig_info["signer_name"],
-                status=status_result,
-                match_content=match,
-                result_detail=sig_info["raw_output"]
-            )
-
-            serializer = self.get_serializer(verification)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+    def post(self, request, pk):
+        try:
+            invoice = ExtractedInvoice.objects.get(pk=pk)
+            result = compare_and_verify_xml(invoice)
+            return Response(result, status=status.HTTP_200_OK)
 
         except ExtractedInvoice.DoesNotExist:
-            return Response({"error": "Không tìm thấy hóa đơn."}, status=404)
+            return Response({"error": "Không tìm thấy hóa đơn."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            return Response({"error": str(e)}, status=500)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
