@@ -1,5 +1,7 @@
+from django.contrib.auth.models import User
 from django.db import models
-from django.utils import timezone
+
+
 
 
 # ==========================
@@ -20,7 +22,7 @@ class Company(models.Model):
 # File Hóa đơn người dùng upload
 # ==========================
 class InvoiceUpload(models.Model):
-    uploaded_by = models.CharField(max_length=100)  # Có thể dùng User model sau
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='uploaded_invoices')
     uploaded_at = models.DateTimeField(auto_now_add=True)
     file = models.FileField(upload_to="invoices/", blank=True, null=True)
     cloudinary_url = models.URLField(blank=True, null=True)

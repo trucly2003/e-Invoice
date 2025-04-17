@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useContext, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { UserContext } from '../../configs/context';
 
 export default function LoginForm() {
   const [username, setUsername] = useState('');
@@ -8,7 +9,9 @@ export default function LoginForm() {
   const [remember, setRemember] = useState(false);
   const [message, setMessage] = useState('');
   const navigate = useNavigate(); 
-
+  const location = useLocation()
+  const {from} = location['state'] || {from: "/"}
+  const {setUser} = useContext(UserContext)
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -16,9 +19,12 @@ export default function LoginForm() {
         username,
         password,
       });
+      const accessToken = res['data']['access']
       localStorage.setItem('token', res.data.access);
-      setMessage("✅ Login thành công!");
-      navigate('/dashboard'); // 👉 chuyển hướng sau khi đăng nhập
+      if (accessToken) {
+        setUser({username: "test"})
+        navigate(from)
+      }
     } catch (err) {
       setMessage("❌ Sai tài khoản hoặc mật khẩu.", err);
     }

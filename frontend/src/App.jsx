@@ -1,15 +1,13 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import LoginForm from './components/LoginForm';
-import Dashboard from './pages/Dashboard';
+import {  useState } from 'react';
+import { UserContext } from './configs/context';
+import ApplicationRouter from './routes/applicationRouter';
 
 function App() {
+  const [user, setUser] = useState(null);
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<LoginForm />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-      </Routes>
-    </Router>
+    <UserContext.Provider value={{user, setUser}}>
+      <ApplicationRouter/>
+    </UserContext.Provider>
   );
 }
 

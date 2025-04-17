@@ -1,5 +1,5 @@
 import './Dashboard.css';
-import pdfIcon from '../assets/pdf-icon.png'; // nếu có icon .png
+// import pdfIcon from '../assets/pdf-icon.png'; // nếu có icon .png
 
 
 
@@ -52,7 +52,7 @@ export default function Dashboard() {
               <tr key={idx}>
                 <td>{idx + 1}</td>
                 <td>
-                  <img src={pdfIcon} alt="PDF" width="20" className="me-2" />
+                  {/* <img src={pdfIcon} alt="PDF" width="20" className="me-2" /> */}
                   {item.filename}
                 </td>
                 <td>{item.template}</td>
