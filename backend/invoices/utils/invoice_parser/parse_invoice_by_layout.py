@@ -1,7 +1,7 @@
 # parse_utils/parse_invoice_by_layout.py
 from .normalize import normalize_text_for_matching
 from .detect import detect_template
-from . import green_planet_layout, sankyu_layout, msc_layout, hapag_layout, generic
+from . import green_planet_layout, sankyu_layout, msc_layout, hapag_layout, generic, viettel_layout
 
 def parse_invoice_by_layout(text: str) -> dict:
     normalized_text = normalize_text_for_matching(text)
@@ -18,3 +18,12 @@ def parse_invoice_by_layout(text: str) -> dict:
         return hapag_layout.parse(normalized_text)
     else:
         return generic.parse(normalized_text)
+
+
+# def parse_invoice_by_layout(text: str) -> dict:
+#     normalized_text = normalize_text_for_matching(text)
+#
+#     # Nếu chỉ dùng hóa đơn Viettel, bạn có thể bỏ detect_template hoàn toàn:
+#     print(f"🧭 Using layout: viettel_layout")
+#
+#     return viettel_layout.parse(normalized_text)

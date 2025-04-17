@@ -45,6 +45,10 @@ class ExtractedInvoice(models.Model):
     total_amount = models.DecimalField(max_digits=15, decimal_places=2)
     vat_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0.0)
     grand_total = models.DecimalField(max_digits=15, decimal_places=2, default=0.0)
+    ma_tra_cuu = models.CharField(max_length=50, blank=True, null=True)
+
+    link_tra_cuu = models.URLField(blank=True, null=True)
+    xml_filename = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
         return f"Hóa đơn {self.invoice_number} - {self.seller}"
@@ -99,7 +103,27 @@ class InvoiceVerification(models.Model):
     def __str__(self):
         return f"{self.invoice.invoice_number} - {self.status}"
 
-# models.py
+class VerifiedXMLInvoice(models.Model):
+    invoice = models.OneToOneField(ExtractedInvoice, on_delete=models.CASCADE)
+    invoice_number = models.CharField(max_length=50)
+    invoice_date = models.DateField(null=True, blank=True)
+    seller_tax_code = models.CharField(max_length=20)
+    buyer_tax_code = models.CharField(max_length=20)
+    total_amount = models.FloatField(null=True, blank=True)
+    vat_amount = models.FloatField(null=True, blank=True)
+    grand_total = models.FloatField(null=True, blank=True)
+
+    cloudinary_url = models.URLField(null=True, blank=True)
+    raw_xml = models.TextField(null=True, blank=True)
+
+    status = models.CharField(max_length=10, null=True, blank=True)
+    note = models.TextField(null=True, blank=True)
+
+    local_xml_path = models.TextField(null=True, blank=True)
+
+    verified_at = models.DateTimeField(auto_now=True)
+
+
 class SignatureVerification(models.Model):
     invoice = models.ForeignKey(ExtractedInvoice, on_delete=models.CASCADE, related_name="signature_verification")
     signer_name = models.CharField(max_length=255)

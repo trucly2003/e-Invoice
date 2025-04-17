@@ -15,6 +15,8 @@ def parse(text: str) -> dict:
         "total_amount": 0.0,
         "vat_amount": 0.0,
         "grand_total": 0.0,
+        "link_tra_cuu": "",
+        "ma_tra_cuu": "",
         "serial": "",
         "items": []
     }
@@ -46,6 +48,14 @@ def parse(text: str) -> dict:
     if match_buyer_name:
         parsed["buyer_name"] = match_buyer_name.group(1).strip()
 
+    match_ma_tra_cuu = re.search(r"(ma\s+tra\s+cuu.*?)([a-z0-9]{10,})", text)
+    if not match_ma_tra_cuu:
+        match_ma_tra_cuu = re.search(r"mtc=([a-z0-9]{10,})", text)
+
+    if match_ma_tra_cuu:
+        parsed["ma_tra_cuu"] = match_ma_tra_cuu.group(match_ma_tra_cuu.lastindex).strip().upper()
+
+
     match_buyer_tax = re.search(r"(tax id|ma so thue)\s*[:\-]?\s*([\d\s]{10,})", text)
     if match_buyer_tax:
         parsed["buyer_tax"] = match_buyer_tax.group(2).replace(" ", "").strip()
@@ -63,6 +73,10 @@ def parse(text: str) -> dict:
     match_vat = re.search(r"vat amount\s*[:\-]?\s*([\d\.]+)", text)
     if match_vat:
         parsed["vat_amount"] = float(match_vat.group(1).replace(".", ""))
+
+    match_tra_cuu = re.search(r"(https?://tracuu\.ehoadon\.vn[^\s]+)", text, re.IGNORECASE)
+    if match_tra_cuu:
+        parsed["link_tra_cuu"] = match_tra_cuu.group(1).strip()
 
     match_grand = re.search(r"grand total\s*[:\-]?\s*([\d\.]+)", text)
     if match_grand:
