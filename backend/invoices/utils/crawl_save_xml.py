@@ -4,7 +4,7 @@ import glob
 import datetime
 import base64
 import cloudinary.uploader
-import xml.etree.ElementTree as ET
+from lxml import etree
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -90,7 +90,8 @@ def crawl_save_and_verify_xml(extracted_invoice_id):
         )
         cloudinary_url = upload_result.get("secure_url")
 
-        root = ET.fromstring(raw_bytes.decode("utf-8", errors="ignore"))
+        parser = etree.XMLParser(remove_blank_text=False)
+        root = etree.fromstring(raw_bytes, parser=parser)
 
         VerifiedXMLInvoice.objects.update_or_create(
             invoice=invoice,

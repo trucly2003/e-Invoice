@@ -1,58 +1,71 @@
-from lxml import etree
-from signxml import XMLVerifier
-import base64
+import os
+import requests
+import json
+from datetime import datetime
+from django.utils.timezone import make_aware
+from invoices.models import ExtractedInvoice, SignatureVerification
 
-def der_to_pem(cert_der: bytes) -> str:
-    b64_cert = base64.b64encode(cert_der).decode("ascii")
-    pem = "-----BEGIN CERTIFICATE-----\n"
-    pem += "\n".join([b64_cert[i:i+64] for i in range(0, len(b64_cert), 64)])
-    pem += "\n-----END CERTIFICATE-----"
-    return pem
+folder_path = r"D:\TaiLieuHocTap\khoaluantotnghiep\e-Invoice\backend\invoices\xml_files"
 
-def verify_xml_signature(file_path=None, xml_bytes=None):
-    try:
-        if xml_bytes is None and file_path is None:
-            return {
-                "status": "FAIL",
-                "message": "❌ Cần truyền file_path hoặc xml_bytes.",
-                "signature_verified": False
-            }
+def verify_signature_from_latest_xml(invoice):
+    files = [os.path.join(folder_path, f) for f in os.listdir(folder_path) if f.endswith('.xml')]
+    if not files:
+        return {"error": "Không tìm thấy file XML nào trong thư mục."}, 400
 
-        if xml_bytes is None:
-            with open(file_path, "rb") as f:
-                xml_bytes = f.read()
+    newest_file = max(files, key=os.path.getmtime)
 
-        parser = etree.XMLParser(remove_blank_text=False)
-        xml_tree = etree.fromstring(xml_bytes, parser=parser)
+    headers = {
+        "accept": "*/*",
+        "accept-encoding": "gzip, deflate, br, zstd",
+        "accept-language": "vi-VN,vi;q=0.9",
+        "origin": "https://neac.gov.vn",
+        "referer": "https://neac.gov.vn/vi/",
+        "sec-ch-ua": '"Google Chrome";v="135", "Not-A.Brand";v="8", "Chromium";v="135"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/135.0.0.0",
+        "x-requested-with": "XMLHttpRequest",
+    }
 
-        ns = {'ds': 'http://www.w3.org/2000/09/xmldsig#'}
-        cert_el = xml_tree.find('.//ds:X509Certificate', namespaces=ns)
-        if cert_el is None:
-            return {
-                "status": "FAIL",
-                "message": "❌ Không tìm thấy X509Certificate trong XML",
-                "signature_verified": False
-            }
+    url = "https://neac.gov.vn/vi/Home/VerifyFileByNeac"
 
-        cert_der = base64.b64decode(cert_el.text.strip())
-        cert_pem = der_to_pem(cert_der)
-
-        XMLVerifier().verify(
-            xml_tree,
-            x509_cert=cert_pem,
-            require_x509=False,
-            validate_schema=False
-        )
-
-        return {
-            "status": "PASS",
-            "message": "✅ Chữ ký hợp lệ (file gốc không chỉnh sửa)",
-            "signature_verified": True
+    with open(newest_file, 'rb') as f:
+        files = {
+            "file": (os.path.basename(newest_file), f, "application/xml")
         }
 
-    except Exception as e:
-        return {
-            "status": "FAIL",
-            "message": f"❌ Lỗi xác minh: {str(e)}",
-            "signature_verified": False
-        }
+        response = requests.post(url, files=files, headers=headers)
+
+        if response.status_code == 200:
+            try:
+                result = response.json()
+                signatures = result.get("signature", {}).get("data", [])
+                saved_results = []
+
+                for sig in signatures:
+                    signer_name = sig.get("signer", {}).get("cn", "")
+                    intact = sig.get("intact", "")
+                    match_content = (intact == "Không bị thay đổi")
+                    status = "PASS" if match_content else "FAIL"
+
+                    SignatureVerification.objects.create(
+                        invoice=invoice,
+                        signer_name=signer_name,
+                        status=status,
+                        match_content=match_content,
+                        result_detail=json.dumps(sig, ensure_ascii=False),
+                        verified_at=make_aware(datetime.now())
+                    )
+
+                    saved_results.append({
+                        "signer_name": signer_name,
+                        "status": status,
+                        "match_content": match_content
+                    })
+
+                return {"message": "Xác minh thành công", "results": saved_results}, 200
+
+            except Exception as e:
+                return {"error": f"Lỗi xử lý phản hồi: {str(e)}"}, 500
+        else:
+            return {"error": f"Lỗi gọi API: {response.status_code}"}, 500
