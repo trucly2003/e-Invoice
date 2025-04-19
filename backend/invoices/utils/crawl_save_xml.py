@@ -33,6 +33,7 @@ def crawl_save_and_verify_xml(extracted_invoice_id):
     os.makedirs(download_dir, exist_ok=True)
 
     chrome_options = Options()
+    chrome_options.add_argument('--headless')
     chrome_options.add_experimental_option("prefs", {
         "download.default_directory": download_dir,
         "download.prompt_for_download": False,

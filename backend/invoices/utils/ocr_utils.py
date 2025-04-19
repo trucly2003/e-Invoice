@@ -43,3 +43,17 @@ def extract_text_from_image(image_path):
     print("🖼️ OCR TEXT (normalized):\n", normalized)
 
     return raw_text, normalized
+
+
+def clean_ocr_text(text: str) -> str:
+    text = text.upper()
+    text = text.replace("O", "0").replace("S", "5").replace("I", "1")
+
+    def fix_amount(match):
+        return match.group(1) + match.group(2).replace(".", "").replace(",", "")
+
+    text = re.sub(r"(TOTAL AMOUNT|VAT AMOUNT|GRAND TOTAL|TONG .*?)[:\-]?\s*([\d\.]+)", fix_amount, text)
+
+    # ⚠️ Normalize dấu cách thừa
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()

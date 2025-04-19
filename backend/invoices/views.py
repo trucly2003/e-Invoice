@@ -7,9 +7,9 @@ from rest_framework.decorators import action
 from rest_framework import status, viewsets
 import mimetypes
 import os
-
+from invoices.utils.invoice_parser.hapag_layout import parse_pdf, parse_image
 from invoices.utils.invoice_parser import parse_invoice_by_layout
-from invoices.utils.ocr_utils import extract_text_from_pdf, extract_text_from_image
+from invoices.utils.ocr_utils import extract_text_from_pdf, extract_text_from_image, clean_ocr_text
 from .serializers import UploadedFileSerializer, ExtractedInvoiceSerializer, CompanyVerificationSerializer, SignatureVerificationSerializer
 from invoices.utils.verifyMasothue import crawl_taxcode_data, verify_company_data
 from invoices.utils.verifyHoadondientu import verify_invoice_by_id
@@ -35,12 +35,21 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
         file_path = upload_obj.file.path
 
         mime_type, _ = mimetypes.guess_type(file_path)
-        upload_obj.file_type = "PDF" if mime_type and 'pdf' in mime_type else "IMG"
+        file_is_pdf = mime_type and 'pdf' in mime_type
+        upload_obj.file_type = "PDF" if file_is_pdf else "IMG"
         upload_obj.save()
 
         try:
-            raw_text, normalized_text = extract_text_from_pdf(file_path)
-            parsed = parse_invoice_by_layout(normalized_text)
+
+            if file_is_pdf:
+                raw_text, normalized_text = extract_text_from_pdf(file_path)
+                parsed = parse_pdf(normalized_text)
+            else:
+                raw_text, normalized_text = extract_text_from_image(file_path)
+                normalized_text = clean_ocr_text(normalized_text)
+                parsed = parse_image(normalized_text)
+
+
 
             for field in ["seller_name", "seller_address", "buyer_name", "buyer_address"]:
                 if parsed.get(field):
@@ -99,6 +108,7 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
                 ma_tra_cuu=parsed.get("ma_tra_cuu", "")[:50],
             )
 
+            # ✅ Upload to Cloudinary
             result = cloudinary.uploader.upload(
                 file_path,
                 folder="invoices",
