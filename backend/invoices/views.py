@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -7,18 +8,40 @@ from rest_framework.decorators import action
 from rest_framework import status, viewsets
 import mimetypes
 import os
+from invoices.utils.invoice_parser.hapag_layout import parse_pdf, parse_image
 
-from invoices.utils.invoice_parser import parse_invoice_by_layout
-from invoices.utils.ocr_utils import extract_text_from_pdf, extract_text_from_image
-from .serializers import UploadedFileSerializer, ExtractedInvoiceSerializer, CompanyVerificationSerializer, SignatureVerificationSerializer
+from invoices.utils.ocr_utils import extract_text_from_pdf, extract_text_from_image, clean_ocr_text
+from .serializers import UploadedFileSerializer, ExtractedInvoiceSerializer, CompanyVerificationSerializer, \
+    SignatureVerificationSerializer, UserSerializer
 from invoices.utils.verifyMasothue import crawl_taxcode_data, verify_company_data
 from invoices.utils.verifyHoadondientu import verify_invoice_by_id
 from .models import ExtractedInvoice, Company, InvoiceUpload, CompanyVerification, InvoiceVerification, SignatureVerification
-from invoices.utils.verifySig import check_pdf_signature_windows, extract_text_from_pdf, download_cloud_file_temp
+from invoices.utils.xml_verifier import verify_signature_from_latest_xml
 from invoices.utils.crawl_save_xml import crawl_save_and_verify_xml
-from invoices.utils.compare_xml_pdf import compare_and_verify_xml
-
+from invoices import  paginators
 import cloudinary.uploader
+
+
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = (IsAuthenticated,)
+
+    @action(detail=True, methods=["get"], url_path="get_invoices")
+    def get_invoices(self, request, pk):
+        user = self.get_object()
+        invoices = user.uploaded_invoices
+        kw = request.query_params.get('kw')
+        if (kw and len(kw) > 0):
+            invoices = invoices.filter(file__contains=kw)
+        else:
+            invoices = invoices.all()
+        paginator = paginators.UploadInvoicePaginator()
+        paginated_result = paginator.paginate_queryset(invoices, request)
+        if paginated_result is not None:
+            serializered_result = UploadedFileSerializer(paginated_result, many=True)
+            return paginator.get_paginated_response(serializered_result.data)
+        return Response(UploadedFileSerializer(paginated_result, many=True).data, status=status.HTTP_200_OK)
 
 
 class UploadInvoiceViewSet(viewsets.ModelViewSet):
@@ -33,20 +56,34 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         upload_obj = serializer.save()
-        file_path = upload_obj.file.path
+        file_path = os.path.join('invoices/pdf_files/', upload_obj.file.name)
 
-        # ✅ Detect file type (PDF or Image)
         mime_type, _ = mimetypes.guess_type(file_path)
-        if mime_type and 'pdf' in mime_type:
-            upload_obj.file_type = "PDF"
-        else:
-            upload_obj.file_type = "IMG"
+        file_is_pdf = mime_type and 'pdf' in mime_type
+        upload_obj.file_type = "PDF" if file_is_pdf else "IMG"
         upload_obj.save()
 
         try:
-            # ✅ OCR text
-            text = extract_text_from_pdf(file_path) if upload_obj.file_type == "PDF" else extract_text_from_image(file_path)
-            parsed = parse_invoice_by_layout(text)
+
+            if file_is_pdf:
+                raw_text, normalized_text = extract_text_from_pdf(file_path)
+                parsed = parse_pdf(normalized_text)
+            else:
+                raw_text, normalized_text = extract_text_from_image(file_path)
+                normalized_text = clean_ocr_text(normalized_text)
+                parsed = parse_image(normalized_text)
+
+
+
+            for field in ["seller_name", "seller_address", "buyer_name", "buyer_address"]:
+                if parsed.get(field):
+                    parsed[field] = parsed[field][:255]
+
+            if parsed.get("ma_tra_cuu"):
+                parsed["ma_tra_cuu"] = parsed["ma_tra_cuu"][:50]
+
+            if parsed.get("link_tra_cuu"):
+                parsed["link_tra_cuu"] = parsed["link_tra_cuu"][:300]
 
             # ✅ Seller
             seller, created = Company.objects.get_or_create(
@@ -64,7 +101,7 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
                 if changed:
                     seller.save()
 
-            # ✅ Buyer (cập nhật nếu có thay đổi)
+            # ✅ Buyer
             buyer, created = Company.objects.get_or_create(
                 tax_code=parsed["buyer_tax"],
                 defaults={"name": parsed["buyer_name"], "address": parsed["buyer_address"]}
@@ -90,12 +127,12 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
                 total_amount=parsed["total_amount"],
                 vat_amount=parsed["vat_amount"],
                 grand_total=parsed["grand_total"],
-                serial=parsed.get("serial", ""),
-                link_tra_cuu=parsed["link_tra_cuu"],
-                ma_tra_cuu=parsed["ma_tra_cuu"],
+                serial=parsed.get("serial", "")[:50],
+                link_tra_cuu=parsed.get("link_tra_cuu", "")[:300],
+                ma_tra_cuu=parsed.get("ma_tra_cuu", "")[:50],
             )
 
-            # ✅ Upload Cloudinary (giữ local file để dùng pdfsig)
+            # ✅ Upload to Cloudinary
             result = cloudinary.uploader.upload(
                 file_path,
                 folder="invoices",
@@ -105,7 +142,6 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
                 unique_filename=False
             )
             upload_obj.cloudinary_url = result.get("secure_url")
-            # ❌ KHÔNG XÓA file local nữa → cần để kiểm thử chữ ký
             upload_obj.save()
 
             return Response({
@@ -127,7 +163,7 @@ class ExtractedInvoiceViewSet(viewsets.ModelViewSet):
     serializer_class = ExtractedInvoiceSerializer
     permission_classes = [IsAuthenticated]
 
-    @action(detail=True, methods=["post"], url_path="verify-companies")
+    @action(detail=True, methods=["get"], url_path="verify-companies")
     def verify_companies(self, request, pk=None):
         try:
             invoice = self.get_object()
@@ -170,7 +206,7 @@ class ExtractedInvoiceViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=["post"], url_path="verify")
+    @action(detail=True, methods=["get"], url_path="verify")
     def verify_invoice(self, request, pk=None):
         try:
             invoice = self.get_object()
@@ -211,16 +247,17 @@ class InvoiceDownloadViewSet(viewsets.ModelViewSet):
                 "error": f"❌ Lỗi khi xử lý XML: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class CompareAndVerifyXMLAPIView(APIView):
+class VerifyXMLViewSet(viewsets.ModelViewSet):
+    queryset = ExtractedInvoice.objects.all()
     permission_classes = [IsAuthenticated]
+    serializer_class = SignatureVerificationSerializer
 
-    def post(self, request, pk):
+    @action(detail=True, methods=["post"], url_path="verify-signature")
+    def verify_signature(self, request, pk=None):
         try:
-            invoice = ExtractedInvoice.objects.get(pk=pk)
-            result = compare_and_verify_xml(invoice)
-            return Response(result, status=status.HTTP_200_OK)
-
+            invoice = self.get_object()
         except ExtractedInvoice.DoesNotExist:
             return Response({"error": "Không tìm thấy hóa đơn."}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        result, code = verify_signature_from_latest_xml(invoice)
+        return Response(result, status=code)

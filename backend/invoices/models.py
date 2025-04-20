@@ -1,5 +1,7 @@
+from django.contrib.auth.models import User
 from django.db import models
-from django.utils import timezone
+
+
 
 
 # ==========================
@@ -20,13 +22,15 @@ class Company(models.Model):
 # File Hóa đơn người dùng upload
 # ==========================
 class InvoiceUpload(models.Model):
-    uploaded_by = models.CharField(max_length=100)  # Có thể dùng User model sau
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='uploaded_invoices')
     uploaded_at = models.DateTimeField(auto_now_add=True)
-    file = models.FileField(upload_to="invoices/", blank=True, null=True)
+    file = models.FileField(upload_to="invoices/pdf_files/", blank=True, null=True)
     cloudinary_url = models.URLField(blank=True, null=True)
     file_type = models.CharField(max_length=10, choices=[("PDF", "PDF"), ("IMG", "Image")])
     status = models.CharField(max_length=50, default="Pending")  # Pending, Processed, Failed
 
+    class Meta:
+        ordering= ['id']
     def __str__(self):
         return f"{self.file.name} - {self.status}"
 
@@ -34,7 +38,7 @@ class InvoiceUpload(models.Model):
 # Hóa đơn được trích xuất từ file upload
 # ==========================
 class ExtractedInvoice(models.Model):
-    upload = models.OneToOneField(InvoiceUpload, on_delete=models.CASCADE, related_name="extracted")
+    upload = models.ForeignKey(InvoiceUpload, on_delete=models.CASCADE, related_name="extracted")
     serial = models.CharField(max_length=50, blank=True, null=True)
     invoice_number = models.CharField(max_length=100)
     invoice_date = models.DateField()
@@ -47,8 +51,10 @@ class ExtractedInvoice(models.Model):
     grand_total = models.DecimalField(max_digits=15, decimal_places=2, default=0.0)
     ma_tra_cuu = models.CharField(max_length=50, blank=True, null=True)
 
-    link_tra_cuu = models.URLField(blank=True, null=True)
-    xml_filename = models.CharField(max_length=255, blank=True, null=True)
+    link_tra_cuu = models.URLField(max_length=300, blank=True, null=True)  # Tăng lên 300
+
+    xml_filename = models.CharField(max_length=512, blank=True, null=True)
+
 
     def __str__(self):
         return f"Hóa đơn {self.invoice_number} - {self.seller}"

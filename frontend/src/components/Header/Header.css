@@ -1,0 +1,9 @@
+.user-interface {
+    width: 4rem;
+    height: 4rem;
+    font-size: smaller;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    user-select: none;
+    background-color: white;
+}
