@@ -24,7 +24,7 @@ class Company(models.Model):
 class InvoiceUpload(models.Model):
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='uploaded_invoices')
     uploaded_at = models.DateTimeField(auto_now_add=True)
-    file = models.FileField(upload_to="invoices/", blank=True, null=True)
+    file = models.FileField(upload_to="invoices/pdf_files/", blank=True, null=True)
     cloudinary_url = models.URLField(blank=True, null=True)
     file_type = models.CharField(max_length=10, choices=[("PDF", "PDF"), ("IMG", "Image")])
     status = models.CharField(max_length=50, default="Pending")  # Pending, Processed, Failed

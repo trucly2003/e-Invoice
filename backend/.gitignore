@@ -5,6 +5,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+/invoices/pdf_files
+/invoices/xml_files
 # C extensions
 *.so
 
@@ -183,3 +185,5 @@ fabric.properties
 
 # idea folder, uncomment if you don't need it
 # .idea
+
+**/__pycache__/

@@ -33,8 +33,9 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         upload_obj = serializer.save()
-        file_path = upload_obj.file.path
 
+        file_path = os.path.join('invoices/pdf_files', upload_obj.file.name)
+        print(file_path)
         # ✅ Detect file type (PDF or Image)
         mime_type, _ = mimetypes.guess_type(file_path)
         if mime_type and 'pdf' in mime_type:
@@ -47,7 +48,6 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
             # ✅ OCR text
             text = extract_text_from_pdf(file_path) if upload_obj.file_type == "PDF" else extract_text_from_image(file_path)
             parsed = parse_invoice_by_layout(text)
-
             # ✅ Seller
             seller, created = Company.objects.get_or_create(
                 tax_code=parsed["seller_tax"],

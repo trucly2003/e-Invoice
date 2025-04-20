@@ -6,7 +6,7 @@ from .views import (
     InvoiceDownloadViewSet,
     CompareAndVerifyXMLAPIView, #VerifyXMLSignatureAPIView
 )
-from .auth_api import login_view, register_view
+from .auth_api import login_view, register_view, get_self
 
 router = DefaultRouter()
 router.register("invoices", ExtractedInvoiceViewSet, basename="invoice")
@@ -19,6 +19,7 @@ urlpatterns = [
     # Auth
     path("login/", login_view, name="login"),
     path("register/", register_view, name="register"),
+    path("get_self/", get_self, name="get_self"),
 
     # path("invoice-verification/<int:pk>/compare-xml-content/", CompareXMLContentAPIView.as_view(),
     #      name="compare-xml-content"),

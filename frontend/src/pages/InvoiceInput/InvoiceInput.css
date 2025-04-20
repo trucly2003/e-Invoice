@@ -1,0 +1,54 @@
+/* Bootstrap 5 CSS and icons DC3545included */
+:root {
+    --colorPrimaryNormal: #;
+    --colorPrimaryDark: #DC3545;
+    --colorPrimaryGlare: #DC3545;
+    --colorPrimaryHalf: #DC3545;
+    --colorPrimaryQuarter: #bfecee;
+    --colorPrimaryEighth: #dff5f7;
+    --colorPrimaryPale: #f3f5f7;
+    --colorPrimarySeparator: #f3f5f7;
+    --colorPrimaryOutline: #dff5f7;
+    --colorButtonNormal: #DC3545;
+    --colorButtonHover: #DC3545;
+    --colorLinkNormal: #DC3545;
+    --colorLinkHover: #DC3545;
+  }
+  
+  
+  .upload_dropZone {
+    color: #0f3c4b;
+    outline: 1px dashed var(--colorPrimaryHalf, #c1ddef);
+    outline-offset: -12px;
+    transition:
+      outline-offset 0.2s ease-out,
+      outline-color 0.3s ease-in-out,
+      background-color 0.2s ease-out;
+    
+  }
+  .upload_dropZone.highlight {
+    outline-offset: -4px;
+    outline-color: var(--colorPrimaryNormal, #0576bd);
+    background-color: var(--colorPrimaryEighth, #c8dadf);
+  }
+
+  .btn-upload:hover,
+  .btn-upload:focus {
+    color: #fff;
+    background-color: var(--colorPrimaryGlare);
+  }
+  .upload-image {
+    width: 5rem;
+    object-fit: contain;
+    border: 0.5px solid #FF7F7F;
+    border-radius: 10px;
+  }
+
+  .invoice-input {
+    background-color: whitesmoke;
+  }
+  
+  .file-view {
+    width: 100%;
+    height: 100vh;
+  }

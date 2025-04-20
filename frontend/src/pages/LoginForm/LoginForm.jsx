@@ -1,5 +1,5 @@
 import { useContext, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { UserContext } from '../../configs/context';
 
@@ -20,9 +20,14 @@ export default function LoginForm() {
         password,
       });
       const accessToken = res['data']['access']
-      localStorage.setItem('token', res.data.access);
       if (accessToken) {
-        setUser({username: "test"})
+        localStorage.setItem('token', res.data.access);
+        const fetchUser = await axios.get('http://localhost:8000/api/get_self/',{
+          headers: {
+            Authorization: "Bearer " + accessToken
+          }
+        })
+        setUser(fetchUser['data'])
         navigate(from)
       }
     } catch (err) {
@@ -74,7 +79,7 @@ export default function LoginForm() {
         </form>
         <div className="text-center mt-3">
           <p className="text-muted mb-1" style={{ fontSize: "14px" }}>Forgot password?</p>
-          <p className="text-muted" style={{ fontSize: "14px" }}>Don't have an account?</p>
+          <Link to='/register' className="text-muted" style={{ fontSize: "14px" }} >Don't have an account?</Link>
           {message && <div className="mt-2 text-danger">{message}</div>}
         </div>
       </div>

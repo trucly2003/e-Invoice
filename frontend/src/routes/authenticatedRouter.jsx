@@ -4,9 +4,9 @@ import { UserContext } from "../configs/context";
 
 export default function AuthenticatedRoute({children}) {
     const {user} = useContext(UserContext)
-    const accessToken = localStorage.getItem("accessToken")
+    const accessToken = localStorage.getItem("token")
     let {pathname} = useLocation();
-    if (accessToken) {
+    if (accessToken && !user) {
         return <div></div>
     }
     if (!user) {
