@@ -48,14 +48,21 @@ def verify_invoice_by_id(invoice_id: int):
     vat = int(invoice.total_amount)
     grand = int(invoice.grand_total)
 
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=webdriver.ChromeOptions())
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--window-size=1920x1080")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
     result_data = {"invoice_id": invoice_id, "status": "FAIL", "result_content": ""}
 
     try:
         driver.get("https://hoadondientu.gdt.gov.vn/")
         time.sleep(3)
 
-
+        # Đóng popup nếu có
         try:
             WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.CLASS_NAME, "ant-modal-close"))).click()
         except:
@@ -66,8 +73,6 @@ def verify_invoice_by_id(invoice_id: int):
         WebDriverWait(driver, 5).until(
             EC.element_to_be_clickable((By.XPATH, '//ul[contains(@class, "ant-select-dropdown-menu")]/li[1]'))
         ).click()
-
-
 
         driver.find_element(By.XPATH, '//*[@id="khhdon"]').send_keys(serial)
         driver.find_element(By.XPATH, '//*[@id="shdon"]').send_keys(invoice_no)

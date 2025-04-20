@@ -49,8 +49,10 @@ class ExtractedInvoice(models.Model):
     grand_total = models.DecimalField(max_digits=15, decimal_places=2, default=0.0)
     ma_tra_cuu = models.CharField(max_length=50, blank=True, null=True)
 
-    link_tra_cuu = models.URLField(blank=True, null=True)
-    xml_filename = models.CharField(max_length=255, blank=True, null=True)
+    link_tra_cuu = models.URLField(max_length=300, blank=True, null=True)  # Tăng lên 300
+
+    xml_filename = models.CharField(max_length=512, blank=True, null=True)
+
 
     def __str__(self):
         return f"Hóa đơn {self.invoice_number} - {self.seller}"

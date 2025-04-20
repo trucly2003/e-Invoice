@@ -3,8 +3,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     ExtractedInvoiceViewSet, UploadInvoiceViewSet,
-    InvoiceDownloadViewSet,
-    CompareAndVerifyXMLAPIView, #VerifyXMLSignatureAPIView
+    InvoiceDownloadViewSet, VerifyXMLViewSet
 )
 from .auth_api import login_view, register_view, get_self
 
@@ -12,6 +11,7 @@ router = DefaultRouter()
 router.register("invoices", ExtractedInvoiceViewSet, basename="invoice")
 router.register("upload-invoice", UploadInvoiceViewSet, basename="upload-invoice")
 router.register("invoice-download", InvoiceDownloadViewSet, basename="invoice-download")
+router.register("verify-xml", VerifyXMLViewSet, basename="verify-xml")
 
 urlpatterns = [
     path("", include(router.urls)),
@@ -25,6 +25,5 @@ urlpatterns = [
     #      name="compare-xml-content"),
     # path("invoice-verification/<int:pk>/verify-xml-signature/", VerifyXMLSignatureAPIView.as_view(),
     #      name="verify-xml-signature"),
-    path("invoice-verification/<int:pk>/verify-all/", CompareAndVerifyXMLAPIView.as_view(), name="verify-all"),
 
 ]
