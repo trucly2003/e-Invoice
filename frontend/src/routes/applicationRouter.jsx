@@ -9,13 +9,14 @@ import Home from "../pages/Home/Home"
 import InvoiceInput from "../pages/InvoiceInput/InvoiceInput"
 import Invoices from "../pages/Invoices/Invoices"
 import History from "../pages/History/History"
+import InvoiceCheck from "../pages/InvoiceCheck/InvoiceCheck"
 
 
 export default function ApplicationRouter()  {
     return (<BrowserRouter>
         <Routes>
             <Route path="/" element={<ApplicationLayout/>}>
-                <Route path="/" element={<AuthenticatedRoute>
+                <Route path="/home" element={<AuthenticatedRoute>
                         <Home/>
                     </AuthenticatedRoute>}/>
                 <Route path="/input" element={<AuthenticatedRoute>
@@ -24,6 +25,9 @@ export default function ApplicationRouter()  {
                 <Route path="/invoices" element={<AuthenticatedRoute>
                         <Invoices/>
                     </AuthenticatedRoute>}/>
+                <Route path="/invoices/:id" element={<AuthenticatedRoute>
+                    <InvoiceCheck/>
+                </AuthenticatedRoute>}/>
                 <Route path="/history" element={<AuthenticatedRoute>
                         <History/>
                     </AuthenticatedRoute>}/>

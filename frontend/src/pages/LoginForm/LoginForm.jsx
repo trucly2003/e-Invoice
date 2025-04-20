@@ -10,7 +10,7 @@ export default function LoginForm() {
   const [message, setMessage] = useState('');
   const navigate = useNavigate(); 
   const location = useLocation()
-  const {from} = location['state'] || {from: "/"}
+  const {from} = location['state'] || {from: "/home"}
   const {setUser} = useContext(UserContext)
   const handleLogin = async (e) => {
     e.preventDefault();

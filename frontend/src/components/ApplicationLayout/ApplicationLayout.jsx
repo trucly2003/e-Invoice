@@ -6,7 +6,7 @@ export default function ApplicationLayout() {
   const tabs ={
     home: {
       name: 'Home',
-      url: '/'
+      url: '/home'
     },
     input: {
       name: 'Input',
@@ -35,7 +35,7 @@ export default function ApplicationLayout() {
         <ul className="nav flex-column justify-content-evenly">
           {
             Object.keys(tabs).map((tab, index) => {
-              return (<li key={index} className={["nav-item mt-4 p-2", currentPath === tabs[tab]['url'] ? "tab_active" : ""].join(' ')}>
+              return (<li key={index} className={["nav-item mt-4 p-2", currentPath.indexOf(tabs[tab]['url']) >= 0 ? "tab_active" : ""].join(' ')}>
                 <Link className="text-decoration-none text-white p-3 user-select-none"  to={tabs[tab]['url']}>{tabs[tab]['name']}</Link>
               </li>)
             })

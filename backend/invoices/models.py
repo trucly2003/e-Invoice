@@ -29,6 +29,8 @@ class InvoiceUpload(models.Model):
     file_type = models.CharField(max_length=10, choices=[("PDF", "PDF"), ("IMG", "Image")])
     status = models.CharField(max_length=50, default="Pending")  # Pending, Processed, Failed
 
+    class Meta:
+        ordering= ['id']
     def __str__(self):
         return f"{self.file.name} - {self.status}"
 
@@ -36,7 +38,7 @@ class InvoiceUpload(models.Model):
 # Hóa đơn được trích xuất từ file upload
 # ==========================
 class ExtractedInvoice(models.Model):
-    upload = models.OneToOneField(InvoiceUpload, on_delete=models.CASCADE, related_name="extracted")
+    upload = models.ForeignKey(InvoiceUpload, on_delete=models.CASCADE, related_name="extracted")
     serial = models.CharField(max_length=50, blank=True, null=True)
     invoice_number = models.CharField(max_length=100)
     invoice_date = models.DateField()

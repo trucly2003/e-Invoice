@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -8,16 +9,39 @@ from rest_framework import status, viewsets
 import mimetypes
 import os
 from invoices.utils.invoice_parser.hapag_layout import parse_pdf, parse_image
-from invoices.utils.invoice_parser import parse_invoice_by_layout
+
 from invoices.utils.ocr_utils import extract_text_from_pdf, extract_text_from_image, clean_ocr_text
-from .serializers import UploadedFileSerializer, ExtractedInvoiceSerializer, CompanyVerificationSerializer, SignatureVerificationSerializer
+from .serializers import UploadedFileSerializer, ExtractedInvoiceSerializer, CompanyVerificationSerializer, \
+    SignatureVerificationSerializer, UserSerializer
 from invoices.utils.verifyMasothue import crawl_taxcode_data, verify_company_data
 from invoices.utils.verifyHoadondientu import verify_invoice_by_id
 from .models import ExtractedInvoice, Company, InvoiceUpload, CompanyVerification, InvoiceVerification, SignatureVerification
 from invoices.utils.xml_verifier import verify_signature_from_latest_xml
 from invoices.utils.crawl_save_xml import crawl_save_and_verify_xml
-
+from invoices import  paginators
 import cloudinary.uploader
+
+
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = (IsAuthenticated,)
+
+    @action(detail=True, methods=["get"], url_path="get_invoices")
+    def get_invoices(self, request, pk):
+        user = self.get_object()
+        invoices = user.uploaded_invoices
+        kw = request.query_params.get('kw')
+        if (kw and len(kw) > 0):
+            invoices = invoices.filter(file__contains=kw)
+        else:
+            invoices = invoices.all()
+        paginator = paginators.UploadInvoicePaginator()
+        paginated_result = paginator.paginate_queryset(invoices, request)
+        if paginated_result is not None:
+            serializered_result = UploadedFileSerializer(paginated_result, many=True)
+            return paginator.get_paginated_response(serializered_result.data)
+        return Response(UploadedFileSerializer(paginated_result, many=True).data, status=status.HTTP_200_OK)
 
 
 class UploadInvoiceViewSet(viewsets.ModelViewSet):
@@ -118,7 +142,6 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
                 unique_filename=False
             )
             upload_obj.cloudinary_url = result.get("secure_url")
-            os.remove(file_path)
             upload_obj.save()
 
             return Response({
@@ -140,7 +163,7 @@ class ExtractedInvoiceViewSet(viewsets.ModelViewSet):
     serializer_class = ExtractedInvoiceSerializer
     permission_classes = [IsAuthenticated]
 
-    @action(detail=True, methods=["post"], url_path="verify-companies")
+    @action(detail=True, methods=["get"], url_path="verify-companies")
     def verify_companies(self, request, pk=None):
         try:
             invoice = self.get_object()
@@ -183,7 +206,7 @@ class ExtractedInvoiceViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=["post"], url_path="verify")
+    @action(detail=True, methods=["get"], url_path="verify")
     def verify_invoice(self, request, pk=None):
         try:
             invoice = self.get_object()
