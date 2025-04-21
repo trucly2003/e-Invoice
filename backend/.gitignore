@@ -5,6 +5,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+.idea
 /invoices/pdf_files
 /invoices/xml_files
 # C extensions
