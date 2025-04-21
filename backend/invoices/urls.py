@@ -5,14 +5,13 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     ExtractedInvoiceViewSet, UploadInvoiceViewSet,
-    InvoiceDownloadViewSet, VerifyXMLViewSet, UserViewSet
+     VerifyXMLViewSet, UserViewSet
 )
 from .auth_api import login_view, register_view, get_self
 
 router = DefaultRouter()
 router.register("invoices", ExtractedInvoiceViewSet, basename="invoice")
 router.register("upload-invoice", UploadInvoiceViewSet, basename="upload-invoice")
-router.register("invoice-download", InvoiceDownloadViewSet, basename="invoice-download")
 router.register("verify-xml", VerifyXMLViewSet, basename="verify-xml")
 router.register("user", UserViewSet, basename="user")
 

@@ -227,35 +227,16 @@ class ExtractedInvoiceViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class InvoiceDownloadViewSet(viewsets.ModelViewSet):
-    queryset = ExtractedInvoice.objects.all()
-    serializer_class = ExtractedInvoiceSerializer
-    permission_classes = [IsAuthenticated]
-
-    @action(detail=True, methods=["post"], url_path="download-xml")
-    def download_xml(self, request, pk=None):
-        try:
-            invoice = self.get_object()
-            crawl_save_and_verify_xml(invoice.id)
-
-            return Response({
-                "message": f"✅ Đã tải, upload Cloudinary và lưu XML cho mã: {invoice.ma_tra_cuu}"
-            }, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            return Response({
-                "error": f"❌ Lỗi khi xử lý XML: {str(e)}"
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 class VerifyXMLViewSet(viewsets.ModelViewSet):
     queryset = ExtractedInvoice.objects.all()
     permission_classes = [IsAuthenticated]
     serializer_class = SignatureVerificationSerializer
 
-    @action(detail=True, methods=["post"], url_path="verify-signature")
+    @action(detail=True, methods=["get"], url_path="verify-signature")
     def verify_signature(self, request, pk=None):
         try:
             invoice = self.get_object()
+            crawl_save_and_verify_xml(invoice.id)
         except ExtractedInvoice.DoesNotExist:
             return Response({"error": "Không tìm thấy hóa đơn."}, status=status.HTTP_404_NOT_FOUND)
 

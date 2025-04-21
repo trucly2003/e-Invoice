@@ -13,7 +13,7 @@ export default function InvoiceCheck()  {
     const moneyFormatter = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 9});
     const [companiesCheck, setCompaniesCheckCheck] = useState([])
     const [taxDeparmentCheck, setTaxDepartmentCheck] = useState(null)
-    const [eSignCheck, setESignCheck] = useState({})
+    const [eSignCheck, setESignCheck] = useState(null)
     const fetchInvoiceInfo = async () => {
         const url = 'http://localhost:8000/api/upload-invoice/' + id + "/"
         try {
@@ -79,8 +79,38 @@ export default function InvoiceCheck()  {
             console.log(e)
         }
     }
+
+	const fetchSignature = async () => {
+		const url = 'http://localhost:8000/api/verify-xml/' + id + '/verify-signature/'
+        try {
+            const token = localStorage.getItem('token')
+            const response = await axios.get(url, {
+                headers: {
+                    Authorization: 'Bearer ' + token
+                }
+            })
+            const data = response['data']
+            const verifyResult =  {
+                headingMessage: data['message'],
+                details: data['results'].map(sign => {
+					if (sign['match_content']) {
+						return "Được ký bởi " + sign['signer_name']
+					}
+					return "Chữ ký của " + sign['signer_name'] + " không chính xác"
+				}),
+                success: data['overall_status']
+            }
+            
+            setESignCheck(verifyResult)
+        }
+        catch (e) {
+            console.log(e)
+        }
+	}
+
     useEffect(() => {
         fetchInvoiceInfo()
+		fetchSignature()
         fetchTaxDepartment()
         fetchVerifyCompanies()
     }, [])
@@ -134,7 +164,10 @@ export default function InvoiceCheck()  {
                         <h6 className="text-uppercase fw-bolder text-decoration-underline">Kết quả kiểm tra hóa đơn</h6>
                         {
                             companiesCheck.map((result, index) => <CheckResult key={index} {...result} /> )
-                        }  
+                        }
+						{
+							eSignCheck && <CheckResult {...eSignCheck} />
+						} 
                         </div>
                         <div className="col-md-6">
                         <h6 className="text-uppercase fw-bolder text-decoration-underline">Kết quả kiểm tra với hệ thống cục thuế</h6>   

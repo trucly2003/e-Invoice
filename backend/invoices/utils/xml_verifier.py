@@ -3,9 +3,13 @@ import requests
 import json
 from datetime import datetime
 from django.utils.timezone import make_aware
+from rest_framework.status import is_success
+
 from invoices.models import ExtractedInvoice, SignatureVerification
 
-folder_path = r"D:\TaiLieuHocTap\khoaluantotnghiep\e-Invoice\backend\invoices\xml_files"
+settings_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(settings_dir)
+folder_path = project_root + r"\xml_files"
 
 def verify_signature_from_latest_xml(invoice):
     files = [os.path.join(folder_path, f) for f in os.listdir(folder_path) if f.endswith('.xml')]
@@ -39,9 +43,12 @@ def verify_signature_from_latest_xml(invoice):
         if response.status_code == 200:
             try:
                 result = response.json()
+
                 signatures = result.get("signature", {}).get("data", [])
                 saved_results = []
 
+                overall_status = result.get("signature").get("message") == 'Success'
+                response_message = "Chữ ký điện tử được chấp nhập hợp lệ" if overall_status  else "Sai thông tin chữ ký"
                 for sig in signatures:
                     signer_name = sig.get("signer", {}).get("cn", "")
                     intact = sig.get("intact", "")
@@ -63,7 +70,7 @@ def verify_signature_from_latest_xml(invoice):
                         "match_content": match_content
                     })
 
-                return {"message": "Xác minh thành công", "results": saved_results}, 200
+                return {"message": response_message, 'overall_status': overall_status, "results": saved_results}, 200
 
             except Exception as e:
                 return {"error": f"Lỗi xử lý phản hồi: {str(e)}"}, 500
