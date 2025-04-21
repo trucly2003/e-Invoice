@@ -45,7 +45,7 @@ export default function InvoiceCheck()  {
                     postFix = "người bán"
                 }
                 return {
-                    headingMessage: (data[key]['status'] ? 'Đúng thông tin ' : "Sai thông tin ") + postFix,
+                    headingMessage: (data[key]['status'] === "PASS" ? 'Đúng thông tin ' : "Sai thông tin ") + postFix,
                     details: data[key]['message'].split(';'),
                     success: data[key]['status'] === "PASS"
                 }
