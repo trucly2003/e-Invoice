@@ -43,6 +43,18 @@ class UserViewSet(viewsets.ModelViewSet):
             return paginator.get_paginated_response(serializered_result.data)
         return Response(UploadedFileSerializer(paginated_result, many=True).data, status=status.HTTP_200_OK)
 
+    @action(detail=True ,methods=["get"], url_path="get_check_result")
+    def get_check_result(self, request):
+        user = self.get_object()
+        invoices = user.uploaded_invoices.all()
+        result_list = []
+        for invoice in invoices:
+            extracted_data = invoice.extracted_data.first()
+            companies_check = extracted_data.verifications.first()
+            invoice_check = extracted_data.invoice_verification.first()
+            signature_check = extracted_data.signature_verification.first()
+
+
 
 class UploadInvoiceViewSet(viewsets.ModelViewSet):
     queryset = InvoiceUpload.objects.all()
@@ -227,6 +239,9 @@ class ExtractedInvoiceViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+
+
 class VerifyXMLViewSet(viewsets.ModelViewSet):
     queryset = ExtractedInvoice.objects.all()
     permission_classes = [IsAuthenticated]
@@ -236,7 +251,7 @@ class VerifyXMLViewSet(viewsets.ModelViewSet):
     def verify_signature(self, request, pk=None):
         try:
             invoice = self.get_object()
-            crawl_save_and_verify_xml(invoice.id)
+
         except ExtractedInvoice.DoesNotExist:
             return Response({"error": "Không tìm thấy hóa đơn."}, status=status.HTTP_404_NOT_FOUND)
 
