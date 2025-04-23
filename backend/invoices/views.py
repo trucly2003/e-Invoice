@@ -44,15 +44,29 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(UploadedFileSerializer(paginated_result, many=True).data, status=status.HTTP_200_OK)
 
     @action(detail=True ,methods=["get"], url_path="get_check_result")
-    def get_check_result(self, request):
+    def get_check_result(self, request, pk=None):
         user = self.get_object()
         invoices = user.uploaded_invoices.all()
         result_list = []
         for invoice in invoices:
-            extracted_data = invoice.extracted_data.first()
-            companies_check = extracted_data.verifications.first()
-            invoice_check = extracted_data.invoice_verification.first()
-            signature_check = extracted_data.signature_verification.first()
+            result = {}
+            result['id'] = invoice.id
+            result['name'] = invoice.file.name
+            extracted_data = invoice.extracted.first()
+            result['invoice_number'] = extracted_data.invoice_number
+            result['buyer'] = extracted_data.buyer.name
+            result['seller'] = extracted_data.seller.name
+            result['verified_at'] = extracted_data.invoice_verification.last().verified_at
+
+            companies_check = extracted_data.company_verifications.last()
+            invoice_check = extracted_data.invoice_verification.last()
+            signature_check = extracted_data.signature_verification.last()
+
+            result['status'] = ((companies_check.status == "PASS")
+                                and (invoice_check.status == "PASS")
+                                and (signature_check.status == "PAS"))
+            result_list.append(result)
+        return Response(result_list, status.HTTP_200_OK)
 
 
 

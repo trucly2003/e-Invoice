@@ -1,7 +1,8 @@
 import { useContext, useEffect, useState } from 'react'
 import { UserContext } from '../../configs/context'
 import axios from 'axios'
-
+import { BsFillXCircleFill } from "react-icons/bs";
+import { FaCircleCheck } from "react-icons/fa6";
 export default function History() {
     const [invoices, setInvoices] = useState([])
     const [pageTotal, setPageTotal] = useState(0)
@@ -9,7 +10,7 @@ export default function History() {
     const [kw, setKw] = useState('')
     const {user} = useContext(UserContext)
     const fetchInvoices = async () => {
-        const url = `http://localhost:8000/api/user/${user['id']}/get_invoices/?page=${page}&kw=${kw}`
+        const url = `http://localhost:8000/api/user/${user['id']}/get_check_result/?page=${page}&kw=${kw}`
         try {
             const token = localStorage.getItem('token')
             const response = await axios.get(url, {
@@ -17,8 +18,7 @@ export default function History() {
                     Authorization: 'Bearer ' + token
                 }
             })
-            setPageTotal(Math.floor(response['data']['count'] / 10) + 1)
-            setInvoices(response['data']['results'])
+            setInvoices(response['data'])
         } catch (e) {
             console.log(e)}
         }
@@ -61,36 +61,37 @@ export default function History() {
                         <th><div className='d-flex justify-content-center'>#</div></th>
                         <th><div className='d-flex justify-content-center'>File Name</div></th>
                         <th><div className='d-flex justify-content-center'>Invoice Code</div></th>
-                        <th><div className='d-flex justify-content-center'>Supplier</div></th>
-                        <th><div className='d-flex justify-content-center'>Consumer</div></th>
+                        <th><div className='d-flex justify-content-center'>Seller</div></th>
+                        <th><div className='d-flex justify-content-center'>Buyer</div></th>
                         <th><div className='d-flex justify-content-center'>Check Date</div></th>
                         <th><div className='d-flex justify-content-center'>Check</div></th>
                     </tr>
                 </thead>
                 <tbody>
-                    {/* {
+                    {
                         invoices.map((invoice, index) => {
                             return <tr key={index}>
-                                <td><div className='d-flex justify-content-center'>{index + 1}</div></td>
-                                <td><div className='d-flex justify-content-center'>{invoice['file'].replace(/^.*[\\/]/, '')}</div></td>
-                                <td><div className='d-flex justify-content-center'>{invoice['extracted'][invoice['extracted'].length - 1]['invoice_number']}</div></td>
-                                <td><div className='d-flex justify-content-center'>{invoice['status']}</div></td>
-                                <td><div className='d-flex justify-content-center'>{new Date(invoice['uploaded_at']).toLocaleDateString('vi-VN')}</div></td>
-                                <td><div className='d-flex justify-content-center'><button onClick={() => onRunCheck(invoice['id'])} className='btn btn-danger'>Check</button></div></td>
+                                <td><div className='d-flex justify-content-center'>{invoice['id']}</div></td>
+                                <td><div className='d-flex justify-content-center'>{invoice['name'].replace(/^.*[\\/]/, '')}</div></td>
+                                <td><div className='d-flex justify-content-center'>{invoice['invoice_number']}</div></td>
+                                <td><div className='d-flex justify-content-center'>{invoice['seller']}</div></td>
+								<td><div className='d-flex justify-content-center'>{invoice['buyer']}</div></td>
+                                <td><div className='d-flex justify-content-center'>{new Date(invoice['verified_at']).toLocaleDateString('vi-VN')}</div></td>
+                                <td><div className='d-flex justify-content-center'>{invoice['status'] ? <FaCircleCheck color="green" size={20}  /> : <BsFillXCircleFill color="red" size={20}/> }</div></td>
                             </tr>
                         })
-                    } */}
+                    }
                 </tbody>
             </table>
             <nav aria-label="Page navigation example">
                 <ul className="pagination">
-                    <li className="page-item"><button className="page-link" onClick={(e) => {
+                    <li className="page-item"><button className="page-link" onClick={() => {
                         if (page > 1) {
                             setPage(page => page - 1)
                         }
                     }}>Previous</button></li>
                     {renderPaginateNav()}
-                    <li className="page-item"><button className="page-link" onClick={(e) => {
+                    <li className="page-item"><button className="page-link" onClick={() => {
                         if (page <  pageTotal) {
                             setPage(page => page + 1)
                         }
