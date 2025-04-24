@@ -1,5 +1,8 @@
+from cgitb import reset
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.core.paginator import Paginator
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -11,6 +14,7 @@ import os
 from invoices.utils.invoice_parser.hapag_layout import parse_pdf, parse_image
 
 from invoices.utils.ocr_utils import extract_text_from_pdf, extract_text_from_image, clean_ocr_text
+from .paginators import UploadInvoicePaginator
 from .serializers import UploadedFileSerializer, ExtractedInvoiceSerializer, CompanyVerificationSerializer, \
     SignatureVerificationSerializer, UserSerializer
 from invoices.utils.verifyMasothue import crawl_taxcode_data, verify_company_data
@@ -46,7 +50,13 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=True ,methods=["get"], url_path="get_check_result")
     def get_check_result(self, request, pk=None):
         user = self.get_object()
-        invoices = user.uploaded_invoices.all()
+        kw = request.query_params.get('kw')
+        invoices = None
+        if (kw and len(kw) > 0):
+            invoices =user.uploaded_invoices(file__contains=kw)
+        else:
+            invoices = user.uploaded_invoices.all()
+
         result_list = []
         for invoice in invoices:
             result = {}
@@ -64,8 +74,19 @@ class UserViewSet(viewsets.ModelViewSet):
 
             result['status'] = ((companies_check.status == "PASS")
                                 and (invoice_check.status == "PASS")
-                                and (signature_check.status == "PAS"))
+                                and (signature_check.status == "PASS"))
             result_list.append(result)
+        page = int(request.query_params.get("page"))
+        if page > 0:
+            paginator = Paginator(result_list, 10)
+            if page > paginator.num_pages:
+                result_list = []
+            else:
+                return Response({
+                    'count': paginator.count,
+                    'results': paginator.get_page(page).object_list
+                }, status.HTTP_200_OK)
+
         return Response(result_list, status.HTTP_200_OK)
 
 

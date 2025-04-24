@@ -18,7 +18,8 @@ export default function History() {
                     Authorization: 'Bearer ' + token
                 }
             })
-            setInvoices(response['data'])
+            setInvoices(response['data']['results'])
+			setPageTotal(Math.floor(response['data']['count'] / 10) + 1)
         } catch (e) {
             console.log(e)}
         }
