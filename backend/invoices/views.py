@@ -286,7 +286,7 @@ class VerifyXMLViewSet(viewsets.ModelViewSet):
     def verify_signature(self, request, pk=None):
         try:
             invoice = self.get_object()
-
+            crawl_save_and_verify_xml(invoice.id)
         except ExtractedInvoice.DoesNotExist:
             return Response({"error": "Không tìm thấy hóa đơn."}, status=status.HTTP_404_NOT_FOUND)
 
