@@ -1,4 +1,4 @@
-from cgitb import reset
+
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
@@ -59,23 +59,27 @@ class UserViewSet(viewsets.ModelViewSet):
 
         result_list = []
         for invoice in invoices:
-            result = {}
-            result['id'] = invoice.id
-            result['name'] = invoice.file.name
-            extracted_data = invoice.extracted.first()
-            result['invoice_number'] = extracted_data.invoice_number
-            result['buyer'] = extracted_data.buyer.name
-            result['seller'] = extracted_data.seller.name
-            result['verified_at'] = extracted_data.invoice_verification.last().verified_at
+            try:
+                result = {}
+                result['id'] = invoice.id
+                result['name'] = invoice.file.name
+                extracted_data = invoice.extracted.first()
+                result['invoice_number'] = extracted_data.invoice_number
+                result['buyer'] = extracted_data.buyer.name
+                result['seller'] = extracted_data.seller.name
+                result['verified_at'] = extracted_data.invoice_verification.last().verified_at
 
-            companies_check = extracted_data.company_verifications.last()
-            invoice_check = extracted_data.invoice_verification.last()
-            signature_check = extracted_data.signature_verification.last()
+                companies_check = extracted_data.company_verifications.last()
+                invoice_check = extracted_data.invoice_verification.last()
+                signature_check = extracted_data.signature_verification.last()
 
-            result['status'] = ((companies_check.status == "PASS")
-                                and (invoice_check.status == "PASS")
-                                and (signature_check.status == "PASS"))
-            result_list.append(result)
+                result['status'] = ((companies_check.status == "PASS")
+                                    and (invoice_check.status == "PASS")
+                                    and (signature_check.status == "PASS"))
+                result_list.append(result)
+            except Exception as e:
+                print(e)
+                continue
         page = int(request.query_params.get("page"))
         if page > 0:
             paginator = Paginator(result_list, 10)
@@ -247,7 +251,8 @@ class ExtractedInvoiceViewSet(viewsets.ModelViewSet):
                     source="masothue"
                 )
                 results["buyer"] = CompanyVerificationSerializer(buyer_verification).data
-
+            upload_invoice = invoice.upload
+            upload_invoice.status = "CHECKED"
             return Response(results, status=status.HTTP_200_OK)
 
         except Exception as e:

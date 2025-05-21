@@ -2,12 +2,14 @@ import { useContext, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { UserContext } from '../../configs/context';
+import Loading from '../../components/Loading/Loading';
 
 export default function LoginForm() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
   const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate(); 
   const location = useLocation()
   const {from} = location['state'] || {from: "/home"}
@@ -15,6 +17,7 @@ export default function LoginForm() {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
+      setIsLoading(true)
       const res = await axios.post('http://localhost:8000/api/login/', {
         username,
         password,
@@ -33,10 +36,14 @@ export default function LoginForm() {
     } catch (err) {
       setMessage("❌ Sai tài khoản hoặc mật khẩu.", err);
     }
+    finally {
+      setIsLoading(false)
+    }
   };
 
   return (
     <div className="d-flex justify-content-center align-items-center min-vh-100" style={{ backgroundColor: "#fff5f5" }}>
+      {isLoading && <Loading/>}
       <div className="p-4 bg-white rounded-4 shadow" style={{ width: "400px" }}>
         <h2 className="text-center fw-bold mb-1">Sign In</h2>
         <p className="text-center text-muted mb-4">Enter the information below</p>

@@ -1,11 +1,13 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './InvoiceInput.css'
 import { TiDeleteOutline } from "react-icons/ti";
 import { BsChevronExpand } from "react-icons/bs";
 import { FiUpload } from "react-icons/fi";
 import axios from 'axios';
+import { useOutletContext } from 'react-router-dom';
 
 export default function InvoiceInput() {
+    const {setIsLoading} = useOutletContext()
     const fileRef = useRef(null)
     const [uploadedFiles, setUploadedFiles] = useState([])
     const [viewFile, setViewFile] = useState(null)
@@ -24,6 +26,7 @@ export default function InvoiceInput() {
         formData.append('file', uploadedFiles[0])
         formData.append('file_type', 'PDF')
         try {
+            setIsLoading(true)
             const token = localStorage.getItem('token')
             const response = await axios.post('http://localhost:8000/api/upload-invoice/', formData, {
                 headers: {
@@ -36,6 +39,9 @@ export default function InvoiceInput() {
             }
         } catch  {
             alert("Upload failed!!!")
+        }
+        finally {
+            setIsLoading(false)
         }
     }
     const onViewPdf = (index) => {
