@@ -1,4 +1,3 @@
-from cgitb import reset
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
@@ -19,6 +18,7 @@ from .serializers import UploadedFileSerializer, ExtractedInvoiceSerializer, Com
     SignatureVerificationSerializer, UserSerializer
 from invoices.utils.verifyMasothue import crawl_taxcode_data, verify_company_data
 from invoices.utils.verifyHoadondientu import verify_invoice_by_id
+from invoices.utils.invoice_parser import parse_invoice_by_layout
 from .models import ExtractedInvoice, Company, InvoiceUpload, CompanyVerification, InvoiceVerification, SignatureVerification
 from invoices.utils.xml_verifier import verify_signature_from_latest_xml
 from invoices.utils.crawl_save_xml import crawl_save_and_verify_xml
@@ -59,23 +59,27 @@ class UserViewSet(viewsets.ModelViewSet):
 
         result_list = []
         for invoice in invoices:
-            result = {}
-            result['id'] = invoice.id
-            result['name'] = invoice.file.name
-            extracted_data = invoice.extracted.first()
-            result['invoice_number'] = extracted_data.invoice_number
-            result['buyer'] = extracted_data.buyer.name
-            result['seller'] = extracted_data.seller.name
-            result['verified_at'] = extracted_data.invoice_verification.last().verified_at
+            try:
+                result = {}
+                result['id'] = invoice.id
+                result['name'] = invoice.file.name
+                extracted_data = invoice.extracted.first()
+                result['invoice_number'] = extracted_data.invoice_number
+                result['buyer'] = extracted_data.buyer.name
+                result['seller'] = extracted_data.seller.name
+                result['verified_at'] = extracted_data.invoice_verification.last().verified_at
 
-            companies_check = extracted_data.company_verifications.last()
-            invoice_check = extracted_data.invoice_verification.last()
-            signature_check = extracted_data.signature_verification.last()
+                companies_check = extracted_data.company_verifications.last()
+                invoice_check = extracted_data.invoice_verification.last()
+                signature_check = extracted_data.signature_verification.last()
 
-            result['status'] = ((companies_check.status == "PASS")
-                                and (invoice_check.status == "PASS")
-                                and (signature_check.status == "PASS"))
-            result_list.append(result)
+                result['status'] = ((companies_check.status == "PASS")
+                                    and (invoice_check.status == "PASS")
+                                    and (signature_check.status == "PASS"))
+                result_list.append(result)
+            except Exception as e:
+                print(e)
+                continue
         page = int(request.query_params.get("page"))
         if page > 0:
             paginator = Paginator(result_list, 10)
@@ -114,12 +118,14 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
 
             if file_is_pdf:
                 raw_text, normalized_text = extract_text_from_pdf(file_path)
-                parsed = parse_pdf(normalized_text)
+                text_to_parse = normalized_text
+                file_type = "PDF"
             else:
                 raw_text, normalized_text = extract_text_from_image(file_path)
-                normalized_text = clean_ocr_text(normalized_text)
-                parsed = parse_image(normalized_text)
+                text_to_parse = raw_text
+                file_type = "IMG"
 
+            parsed = parse_invoice_by_layout(text_to_parse, file_type=file_type)
 
 
             for field in ["seller_name", "seller_address", "buyer_name", "buyer_address"]:
@@ -203,7 +209,6 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
 
         except Exception as e:
             return Response({"error": f"❌ Lỗi xử lý hóa đơn: {str(e)}"}, status=400)
-
 
 class ExtractedInvoiceViewSet(viewsets.ModelViewSet):
     queryset = ExtractedInvoice.objects.all()

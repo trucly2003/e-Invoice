@@ -33,7 +33,6 @@ def extract_text_from_pdf(pdf_path):
     return raw_text, normalized
 
 
-# ✅ OCR cho ảnh
 def extract_text_from_image(image_path):
     result = reader.readtext(image_path, detail=0)
     raw_text = "\n".join(result)
