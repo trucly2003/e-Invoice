@@ -1,13 +1,15 @@
 import axios from "axios"
 import { useEffect, useState } from "react"
-import { useParams } from "react-router-dom"
+import { useOutletContext, useParams } from "react-router-dom"
 import { TfiMoney } from "react-icons/tfi";
 import { CiShoppingCart } from "react-icons/ci";
 import { AiTwotoneBank } from "react-icons/ai";
 import { TbInvoice } from "react-icons/tb";
 import './InvoiceCheck.css'
 import CheckResult from "../../components/CheckResult/CheckResult";
+
 export default function InvoiceCheck()  {
+    const {setIsLoading} = useOutletContext()    
     const {id} = useParams()
     const [invoiceInfo, setInvoiceInfo] = useState(null)
     const moneyFormatter = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 9});
@@ -17,6 +19,7 @@ export default function InvoiceCheck()  {
     const fetchInvoiceInfo = async () => {
         const url = 'http://localhost:8000/api/upload-invoice/' + id + "/"
         try {
+            setIsLoading(true)
             const token = localStorage.getItem('token')
             const response = await axios.get(url, {
                 headers: {
@@ -27,6 +30,8 @@ export default function InvoiceCheck()  {
         }
         catch (e) {
             console.log(e)
+        }finally {
+            setIsLoading(false)
         }
     }
     const fetchVerifyCompanies = async () => {
@@ -116,10 +121,12 @@ export default function InvoiceCheck()  {
     }, [])
     return (<div className="container-fluid">
         <div className="row">
+            
             <div className="col-md-6">
                 {invoiceInfo && <object className='file-view' data={invoiceInfo['file']} type="application/pdf"></object>}
             </div>
             <div className="col-md-6">
+            
                 {invoiceInfo && (<>
                     <ul className=" list-group list-group-flush" >
                     <li className="list-group-item">
@@ -158,22 +165,26 @@ export default function InvoiceCheck()  {
 
                     </li>
                 </ul>
-                <div className="mt-5 p-4 border">
-                    <div className="row">
-                        <div className="col-md-6">
-                        <h6 className="text-uppercase fw-bolder text-decoration-underline">Kết quả kiểm tra hóa đơn</h6>
-                        {
-                            companiesCheck.map((result, index) => <CheckResult key={index} {...result} /> )
-                        }
-						{
-							eSignCheck && <CheckResult {...eSignCheck} />
-						} 
-                        </div>
+                <div className="mt-5 p-4 border d-flex">
+                    { companiesCheck.length && taxDeparmentCheck && eSignCheck ? (<div className="row">
+                            <div className="col-md-6">
+                            <h6 className="text-uppercase fw-bolder text-decoration-underline">Kết quả kiểm tra hóa đơn</h6>
+                            {
+                                companiesCheck.map((result, index) => <CheckResult key={index} {...result} /> )
+                            }
+                            {
+                                eSignCheck && <CheckResult {...eSignCheck} />
+                            } 
+                            </div>
                         <div className="col-md-6">
                         <h6 className="text-uppercase fw-bolder text-decoration-underline">Kết quả kiểm tra với hệ thống cục thuế</h6>   
                         {taxDeparmentCheck && <CheckResult {...taxDeparmentCheck} />}
                         </div>
-                    </div>
+                    </div>) : (<div className="mx-auto p-2">
+                        <div className="spinner-border" role="status">
+                                <span className="sr-only"></span>
+                            </div>
+                    </div>)}
                 </div>    
             </>)}
                 

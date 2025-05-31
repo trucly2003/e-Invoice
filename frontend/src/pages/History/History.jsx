@@ -3,7 +3,9 @@ import { UserContext } from '../../configs/context'
 import axios from 'axios'
 import { BsFillXCircleFill } from "react-icons/bs";
 import { FaCircleCheck } from "react-icons/fa6";
+import { useOutletContext } from 'react-router-dom';
 export default function History() {
+    const {setIsLoading} = useOutletContext() 
     const [invoices, setInvoices] = useState([])
     const [pageTotal, setPageTotal] = useState(0)
     const [page, setPage] = useState(1)
@@ -12,6 +14,7 @@ export default function History() {
     const fetchInvoices = async () => {
         const url = `http://localhost:8000/api/user/${user['id']}/get_check_result/?page=${page}&kw=${kw}`
         try {
+            setIsLoading(true)
             const token = localStorage.getItem('token')
             const response = await axios.get(url, {
                 headers: {
@@ -21,8 +24,12 @@ export default function History() {
             setInvoices(response['data']['results'])
 			setPageTotal(Math.floor(response['data']['count'] / 10) + 1)
         } catch (e) {
-            console.log(e)}
+            
+            console.log(e)} finally {
+                setIsLoading(false)
+            }
         }
+       
     useEffect(() => {
         fetchInvoices()
     },[page, kw])

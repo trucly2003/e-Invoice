@@ -1,4 +1,5 @@
 
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
@@ -252,7 +253,9 @@ class ExtractedInvoiceViewSet(viewsets.ModelViewSet):
                     source="masothue"
                 )
                 results["buyer"] = CompanyVerificationSerializer(buyer_verification).data
-
+            upload_invoice = invoice.upload
+            upload_invoice.status = "Checked"
+            upload_invoice.save()
             return Response(results, status=status.HTTP_200_OK)
 
         except Exception as e:

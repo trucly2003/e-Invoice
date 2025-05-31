@@ -2,9 +2,10 @@ import { useContext, useEffect, useState } from 'react'
 import './Invoices.css'
 import { UserContext } from '../../configs/context'
 import axios from 'axios'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useOutletContext } from 'react-router-dom'
 
 export default function Invoices() {
+    const {setIsLoading} = useOutletContext()
     const [invoices, setInvoices] = useState([])
     const [pageTotal, setPageTotal] = useState(0)
     const [page, setPage] = useState(1)
@@ -14,6 +15,7 @@ export default function Invoices() {
     const fetchInvoices = async () => {
         const url = `http://localhost:8000/api/user/${user['id']}/get_invoices/?page=${page}&kw=${kw}`
         try {
+            setIsLoading(true)
             const token = localStorage.getItem('token')
             const response = await axios.get(url, {
                 headers: {
@@ -24,6 +26,9 @@ export default function Invoices() {
             setInvoices(response['data']['results'])
         } catch (e) {
             console.log(e)}
+            finally {
+                setIsLoading(false)
+            }
         }
     useEffect(() => {
         fetchInvoices()

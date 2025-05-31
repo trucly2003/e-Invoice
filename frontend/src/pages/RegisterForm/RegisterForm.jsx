@@ -1,6 +1,7 @@
 import { useContext, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import Loading from '../../components/Loading/Loading';
 
 
 export default function RegisterForm() {
@@ -8,6 +9,7 @@ export default function RegisterForm() {
   const [password, setPassword] = useState('');
   const [repassword, setRePassword] = useState('');
   const [message, setMessage] = useState(null)
+  const [isLoading, setIsLoading] = useState(false)
   const navigator = useNavigate()
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -15,6 +17,7 @@ export default function RegisterForm() {
       setMessage('Password does not match!')
     }
     try {
+      setIsLoading(true)
       const res = await axios.post('http://localhost:8000/api/register/', {
         username,
         password,
@@ -25,10 +28,14 @@ export default function RegisterForm() {
     } catch (err) {
       setMessage("❌ Tạo tài khoản không thành công", err);
     }
+    finally {
+      setIsLoading(false)
+    }
   };
 
   return (
     <div className="d-flex justify-content-center align-items-center min-vh-100" style={{ backgroundColor: "#fff5f5" }}>
+      {isLoading && <Loading/>}
       <div className="p-4 bg-white rounded-4 shadow" style={{ width: "400px" }}>
         <h2 className="text-center fw-bold mb-1">Sign Up</h2>
         <p className="text-center text-muted mb-4">Enter the information below</p>

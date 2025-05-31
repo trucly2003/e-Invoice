@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import './ApplicationLayout.css'
 import { useEffect, useState } from "react";
 import Header from "../Header/Header";
+import Loading from "../Loading/Loading";
 export default function ApplicationLayout() {
   const tabs ={
     home: {
@@ -21,7 +22,7 @@ export default function ApplicationLayout() {
       url: '/history'
     }
   }
-
+  const [isLoading, setIsLoading] = useState(false)
   const location = useLocation()
   const [currentPath, setCurrentPath] = useState(location['pathname'])
   useEffect(() => {
@@ -29,6 +30,7 @@ export default function ApplicationLayout() {
     }, [location])
   return (
   <div className="d-flex min-vh-100" style={{ backgroundColor: '#fff5f5' }}>
+      {isLoading && <Loading/>}
       <div className="bg-danger text-white p-3" style={{ width: '200px' }}>
         <h4 className="fw-bold mb-4">E-INVOICE</h4>
         <div className="mt-5">
@@ -45,7 +47,9 @@ export default function ApplicationLayout() {
       </div>
       <div className="p-4 flex-grow-1">
           <Header/>
-          <Outlet/>
+          <Outlet context={{
+            setIsLoading: setIsLoading
+          }} />
       </div>
   </div>
   )
