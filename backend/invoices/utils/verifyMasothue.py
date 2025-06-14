@@ -73,24 +73,38 @@ def crawl_taxcode_data(tax_code):
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("user-agent=Mozilla/5.0 ...")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-features=RendererCodeIntegrity")
+    options.add_argument("--disable-features=FontSrcLocalMatching")
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36")
 
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
 
     try:
         driver.get(url)
-        time.sleep(2)
 
-        driver.maximize_window()
-        search_box = WebDriverWait(driver, 10).until(
+        WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.XPATH, '//*[@id="search"]'))
         )
+        time.sleep(1)
+
+        driver.maximize_window()
+
+        search_box = driver.find_element(By.XPATH, '//*[@id="search"]')
         search_box.clear()
         search_box.send_keys(tax_code)
+        search_box.submit()
 
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(5)
+        # ❌ Xoá scroll xuống sớm
+        # driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
+        # ✅ Thay bằng: đợi kết quả hiện ra rõ ràng
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, '//*[@id="main"]/section[1]/div/table[1]'))
+        )
+
+        time.sleep(2)  # Chờ thêm để đảm bảo CSS được apply
 
         name = driver.find_element(
             By.XPATH, '//*[@id="main"]/section[1]/div/table[1]/tbody/tr[2]/td[2]/span'
@@ -122,6 +136,7 @@ def crawl_taxcode_data(tax_code):
 
     finally:
         driver.quit()
+
 
 
 def verify_company_data(company, crawled_data):

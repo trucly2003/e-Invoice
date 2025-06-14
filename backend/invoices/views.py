@@ -12,7 +12,7 @@ from rest_framework import status, viewsets
 import mimetypes
 import os
 from invoices.utils.invoice_parser.hapag_layout import parse_pdf, parse_image
-
+from invoices.utils.invoice_parser.parse_invoice_by_layout import parse_invoice_by_layout
 from invoices.utils.ocr_utils import extract_text_from_pdf, extract_text_from_image, clean_ocr_text
 from .paginators import UploadInvoicePaginator
 from .serializers import UploadedFileSerializer, ExtractedInvoiceSerializer, CompanyVerificationSerializer, \
@@ -118,11 +118,14 @@ class UploadInvoiceViewSet(viewsets.ModelViewSet):
 
             if file_is_pdf:
                 raw_text, normalized_text = extract_text_from_pdf(file_path)
-                parsed = parse_pdf(normalized_text)
+                text_to_parse = normalized_text
+                file_type = "PDF"
             else:
                 raw_text, normalized_text = extract_text_from_image(file_path)
-                normalized_text = clean_ocr_text(normalized_text)
-                parsed = parse_image(normalized_text)
+                text_to_parse = raw_text
+                file_type = "IMG"
+
+            parsed = parse_invoice_by_layout(text_to_parse, file_type=file_type)
 
 
 
@@ -253,6 +256,7 @@ class ExtractedInvoiceViewSet(viewsets.ModelViewSet):
                 results["buyer"] = CompanyVerificationSerializer(buyer_verification).data
             upload_invoice = invoice.upload
             upload_invoice.status = "CHECKED"
+            upload_invoice.save()
             return Response(results, status=status.HTTP_200_OK)
 
         except Exception as e:
